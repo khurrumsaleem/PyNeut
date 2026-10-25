@@ -63,13 +63,20 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
 | Analytic: Beer–Lambert attenuation, elastic [α,1] and ξ | 13 / 13 pass |
 | Cross-section reader vs `openmc.data` (elastic, capture, (n,2n)) | identical (0.000 %) for every isotope |
 
-Three spectrum shapes are POOR even though their integrals agree: the two
-(n,2n) spheres and B10 at 1 keV. Fe56 at 14 MeV is the one integral warning.
-The (n,2n) shapes were built by binning each history's average escape
-energy, which distorts the spectrum when one history leaks several neutrons.
-They are now scored per neutron and are due to be re-run. The
-[validation report](docs/index.md) has the full tables, the method, and what
-is and is not understood about these cases.
+12 of the 13 spectrum shapes are GOOD. B10 at 1 keV is the one POOR shape,
+and Fe56 at 14 MeV the one integral warning. The (n,2n) shapes used to be POOR
+because the leakage spectrum was binned by each history's average escape
+energy. Scored per neutron, they are GOOD (χ²/dof 0.52 and 0.38).
+
+> **Known issue above ~5 MeV:** the total cross section leaves out some
+> reactions, for example MT 5 (n,anything), MT 22 (n,nα), MT 28 (n,np) and
+> charged-particle channels above MT 107. At 14 MeV it is 18–22 % low for
+> Al27, Fe54 and Ni58, 7.9 % for O16 and 2.8 % for Fe56. Results below 5 MeV,
+> including every k_eff above, are unaffected. Details are in the
+> [validation report](docs/index.md#limitations).
+
+The [validation report](docs/index.md) has the full tables, the method, and
+the tally comparison against OpenMC.
 
 <p align="center">
   <img src="docs/images/icsbep_benchmarks.png"
@@ -224,9 +231,10 @@ The full list, with how each item shows up in the validation, is in
    subset so the benchmarks run without the full library.
 3. **Performance.** The vector engine is done. A Numba-compiled kernel is in
    progress on the `numba-experiment` branch.
-4. **Validation re-run.** Regenerate `validation_results.csv` now that
-   leakage spectra are scored per neutron, to settle the (n,2n)
-   spectrum-shape question.
+4. **Cross sections above 5 MeV.** Count every reaction in the total, and
+   transport the neutron-emitting ones (MT 5, 22, 28 …) with their ENDF
+   secondary distributions. Then re-validate at 14 MeV with steel, aluminium
+   and water.
 5. **Tallies.** Track-length flux on meshes, surface-current tallies, and
    detector tallies on the vector engine.
 6. **Physics.** Energy-correlated (n,xn) multiplicity, S(α,β), multi-temperature

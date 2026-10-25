@@ -16,6 +16,7 @@ the [Quick Start](QUICK_START.md) and the [API reference](api-reference.md).
 [Criticality](#criticality-k-eigenvalue) ·
 [Pin cell](#beavrs-pin-cell-k) ·
 [Vector engine](#vector-engine) ·
+[Tallies](#tallies-vs-openmc) ·
 [Analytic and data checks](#analytic-and-data-layer-checks) ·
 [Physics](#physics-models) ·
 [Limitations](#limitations)
@@ -56,7 +57,9 @@ instead. That gave the two codes masses and number densities that differed by
 0.5–1.0 %, and caused a spurious 2.1σ warning on `c12_cyl_2mev`.
 
 The committed results were produced against a data snapshot fingerprinted in
-`validation_manifest.json` (48 files, measured 2026-08-08). A cross-code
+`validation_manifest.json` (50 files from OpenMC's official ENDF/B-VIII.0 HDF5
+library, measured 2026-10-25). The pin-cell and k-eigenvalue references are
+from an earlier snapshot (48 files, 2026-08). A cross-code
 comparison holds only for one data snapshot. The pin cell, for example, moves
 by about 330 pcm across an evaluation refresh.
 
@@ -72,19 +75,25 @@ directions. Source: `Validation/OpenMC_Comparison/validation_results.csv`.
 |------|--:|--------|------:|----:|:--------:|:-----------------:|
 | Pb208 sphere R=10 | 2 MeV | fast, elastic | 0.9 | 0.3 | OK | GOOD (0.90) |
 | Pb208 sphere R=10 | 5 MeV | fast | 1.1 | 0.1 | OK | GOOD (0.65) |
-| Pb208 sphere R=10 | 14 MeV | fast, (n,2n) | 0.4 | 0.6 | OK | **POOR (29)** |
-| Fe56 slab, 4 thick | 14 MeV | fast, (n,xn) | 2.5 | 1.4 | **WARN** | **POOR (5.5)** |
+| Pb208 sphere R=10 | 14 MeV | fast, (n,2n) | 0.4 | 0.6 | OK | GOOD (0.52) |
+| Fe56 slab, 4 thick | 14 MeV | fast, (n,xn) | 2.5 | 1.4 | **WARN** | GOOD (1.1) |
 | Fe56 sphere R=10 | 1 MeV | fast | 0.8 | 0.4 | OK | GOOD (1.0) |
 | Fe56 sphere R=15 | 25 keV | intermediate | 0.1 | 0.6 | OK | GOOD (0.85) |
-| Be9 sphere R=10 | 14 MeV | fast, (n,2n) | 0.9 | 0.1 | OK | **POOR (46)** |
+| Be9 sphere R=10 | 14 MeV | fast, (n,2n) | 0.9 | 0.1 | OK | GOOD (0.38) |
 | Al27 slab, 1 thick | 1 MeV | fast | 0.0 | 0.2 | OK | GOOD (0.76) |
 | C12 cylinder R=10, height 20 | 2 MeV | fast | 0.0 | 0.4 | OK | GOOD (0.78) |
 | O16 sphere R=20 | 10 MeV | fast | 0.4 | 1.6 | OK | GOOD (1.0) |
-| B10 sphere R=1 | 1 keV | epithermal | 0.6 | 1.2 | OK | **POOR (15)** |
+| B10 sphere R=1 | 1 keV | epithermal | 0.8 | 1.3 | OK | **POOR (15)** |
 | Cd112 sphere R=2 | 0.0253 eV | thermal | 0.7 | 0.3 | OK | GOOD (0.08) |
 | C12 sphere R=5 | 0.0253 eV | thermal | 1.2 | 0.4 | OK | GOOD (0.47) |
 
-**12 OK, 1 warning, 0 failures.**
+**12 OK, 1 warning, 0 failures; 12 of 13 spectrum shapes GOOD.** The table
+was regenerated on 2026-10-25 against OpenMC's official ENDF/B-VIII.0 HDF5
+library, with per-neutron leakage spectra. Every number matches the previous
+run except the three (n,2n) spectrum shapes, which are now GOOD (see below),
+and the B10 row. In both codes the B10 row moved within its error bars,
+because that library's B10 file is not byte-identical to the earlier
+snapshot's.
 
 <p align="center">
   <img src="images/xs_verification.png" alt="U235 cross sections read by PyNeut overlaid on OpenMC" width="49%">
@@ -126,21 +135,33 @@ The Maxwellian-evaporation fallback is used **0 %** of the time. (An earlier
 "18 % / χ² ≈ 86" emission bias was a diagnostic artifact: OpenMC's incident
 block *i* was compared against PyNeut's block *i+1*.)
 
-**A likely tally artifact, pending a re-run.** The PyNeut spectra in this
-table were built by histogramming each *history's* weight-averaged escape
-energy. When (n,xn) makes one history leak several neutrons, say at 0.5 and
-3 MeV, all of that weight lands in one bin near 1.75 MeV, while OpenMC scores
-each neutron at its own energy. That averaging leaves the total leakage and
-the mean escape energy exactly right and narrows the spectrum, which is the
-observed pattern: integrals OK, shape POOR, only in the multiplying cases,
-with PyNeut low in the 4–6 MeV tail of the Pb208 panel below. The validation
-suite now scores leakage per neutron (`pyneut.tallies`), so the next
-`run_all.py` settles it.
+**The POOR (n,2n) shapes were the tally, not the physics.** Until October
+2026 these three spectra were POOR (χ²/dof 29, 46 and 5.5), with PyNeut's
+spectrum built by histogramming each *history's* weight-averaged escape energy.
+When (n,xn) makes one history leak several neutrons, say at 0.5 and 3 MeV,
+that puts all of its weight in one bin near 1.75 MeV, while OpenMC scores each
+neutron at its own energy. Total leakage and mean escape energy stay exactly
+right; only the shape narrows. To test it, the same PyNeut histories (the
+suite's own seeds) were binned both ways and graded against the same live
+OpenMC spectrum:
 
-The earlier working explanation was that PyNeut samples the emitted neutrons
-independently, with no constraint on their total energy. As far as we know,
-OpenMC samples them independently too, so that would not explain a difference
-between the two codes.
+| Case | χ²/dof, per-history binning | χ²/dof, per-neutron | Histories leaking > 1 unit of weight |
+|------|--:|--:|--:|
+| Pb208 (n,2n), 14 MeV | 28.57 | **0.52** | 5 038 |
+| Be9 (n,2n), 14 MeV | 46.28 | **0.38** | 4 863 |
+| Fe56 slab, 14 MeV | 5.47 | **1.12** | 1 490 |
+| Pb208, 2 MeV (control) | 0.90 | 0.90 | 0 |
+| Fe56, 1 MeV (control) | 1.02 | 1.02 | 0 |
+
+The per-history column reproduces the previously committed values exactly,
+so these are the same histories. The single-neutron controls are identical
+both ways, as they must be. The suite now scores leakage per neutron
+(`pyneut.tallies`). The earlier explanation, that the emitted neutrons are
+sampled independently, is withdrawn: the emission was right all along.
+
+The Fe56 slab's integral **warning** has a separate cause: PyNeut's total
+cross section for Fe56 is 2.8 % low at 14 MeV (see
+[Limitations](#limitations)).
 
 B10 at 1 keV is also POOR (15) without any (n,xn). B10 is a near-black
 absorber, so its leaked spectrum is sparse and noisy.
@@ -150,7 +171,7 @@ one panel per case to `images/cases/`:
 
 <p align="center">
   <img src="images/cases/spectrum_pb208_n2n.png"
-       alt="Pb208 14 MeV leakage spectrum from both codes with their ratio below, showing PyNeut low between 4 and 6 MeV"
+       alt="Pb208 14 MeV leakage spectrum from both codes with their ratio below; the two agree across the whole range, chi-squared per degree of freedom 0.52"
        width="62%">
 </p>
 
@@ -283,6 +304,35 @@ add one process per core on top of this.
 
 ---
 
+## Tallies vs OpenMC
+
+The tallies of the input format (`pyneut/tallies.py`) were compared bin by
+bin with OpenMC tallies on matched models. PyNeut went through `pyneut run`
+and OpenMC through its Python API, with identical atom densities, and both
+results are per source neutron:
+
+| Model | Tally | Bins | max \|z\| | χ²/dof | PyNeut / OpenMC total |
+|-------|-------|--:|--:|--:|--:|
+| Pb208 sphere, 2 MeV | flux by energy (track-length) | 2 | 0.76 | 0.29 | 15.231 / 15.229 cm |
+| | flux by energy (collision) | 2 | 1.00 | 0.81 | 15.252 / 15.174 cm |
+| | absorption | 1 | 0.31 | 0.10 | 3.198e-4 / 3.193e-4 |
+| Void cavity + two Pb208 shells, 14 MeV | flux by cell × energy | 36 | 2.6 | 1.89 | 38.72 / 38.46 cm |
+| | absorption by cell | 2 | 1.4 | 1.02 | 1.203e-3 / 1.189e-3 |
+| | leakage spectrum | 12 | 2.7 | 1.44 | 1.6043 / 1.5969 |
+| C12 block, 2 MeV | 4 × 4 × 4 mesh flux (collision) | 64 | 3.3 | 1.11 | 21.60 / 21.79 cm |
+| U235 core + Pb208 reflector, eigenvalue | flux by cell × energy | 6 | 1.7 | 1.53 | 20.06 / 20.03 cm |
+| | absorption by cell | 2 | 1.6 | 1.27 | 0.4229 / 0.4202 |
+
+Flux is track length per source neutron (cm), as OpenMC reports it. The
+cavity case covers a void cell (seen only by the track-length estimator),
+several cells and (n,2n). The same model with iron in place of the inner lead
+shell does **not** agree: PyNeut has too much flux above 12 MeV in the iron
+(+7σ) and 2–3 % too much absorption. Both engines show it, and the lead-only
+model does not, so it is the Fe56 cross-section deficit described under
+[Limitations](#limitations), not the tallies.
+
+---
+
 ## Analytic and data-layer checks
 
 **Analytic benchmarks** (`Validation/analytic_benchmarks.py`): 13 / 13 pass,
@@ -297,15 +347,16 @@ within 3σ of the exact result.
 
 **Cross-section reader** (`validate_xs.py`). Elastic, capture and (n,2n) were
 compared against `openmc.data.IncidentNeutron.from_hdf5` for every isotope.
-All agree to 0.000 %, so any difference between the codes comes from the
-transport physics, not from reading the data.
+All agree to 0.000 %: each reaction is read and interpolated exactly as
+OpenMC reads it. That check never compared the *total*, though, and the total
+leaves some reactions out above ~5 MeV (see [Limitations](#limitations)).
 
 **Secondary-sampling diagnostics.** The kernel counts how each (n,xn)
 secondary energy is sampled: Law 61 correlated, Law 4, or the Maxwellian
 fallback. The suite reports the fallback rate per case, and it is 0 % in every
 case.
 
-**Unit tests:** `pytest` runs 246 tests. They cover geometry against
+**Unit tests:** `pytest` runs 246 tests, and all of them pass against the ENDF/B-VIII.0 library. They cover geometry against
 analytic and trimesh ground truth, material and number-density arithmetic,
 the cross-section reader, scattering kinematics, inelastic physics, batch
 statistics, tally uncertainties, criticality, mixtures, the vector engine and
@@ -337,11 +388,31 @@ The input-format tests use a synthetic data library instead.
 These are stated so the results are not over-trusted. Where possible, the
 validation above puts a number on them.
 
-- **(n,xn) spectrum shape.** The integrals agree, but the leakage spectrum
-  shape is POOR for the (n,2n) spheres (χ²/dof 29 and 46) and for Fe56 at
-  14 MeV (5.5). This is probably the per-history binning of the old
-  spectrum tally, now replaced. See
-  [above](#fixed-source-transport-vs-openmc).
+- **Reactions missing from the total cross section above ~5 MeV.** PyNeut
+  builds Σ_t from elastic, MT 16/17/51–91, absorption MT 102–107 and
+  fission. Other reactions are not counted, so above their thresholds the
+  total is too low and flights too long:
+  - neutron-emitting reactions such as MT 5 (n,anything), MT 22 (n,nα) and
+    MT 28 (n,np);
+  - charged-particle channels above MT 107.
+
+  Below 5 MeV every nuclide agrees with OpenMC's total to better than
+  0.01 %, so the fission-spectrum results are essentially unaffected. At
+  14 MeV the deficit is:
+
+  | Nuclide | Deficit at 14 MeV |
+  |---|--:|
+  | Ni58, Fe54 | 22 % |
+  | B11 | 20 % |
+  | Al27 | 18 % |
+  | Cr50 | 17 % |
+  | O16 | 7.9 % |
+  | Zr90 | 2.9 % |
+  | Fe56 | 2.8 % |
+
+  It is larger toward 20 MeV. This explains the Fe56 14 MeV warning. 14 MeV
+  results with steel, aluminium or water should not be trusted until it is
+  fixed.
 - **Free-gas thermal scattering only (no S(α,β)).** The free-gas model is
   validated, but the binding of atoms in real moderators (water, graphite) is
   not modelled. Thermal results in bound media are therefore approximate, and
