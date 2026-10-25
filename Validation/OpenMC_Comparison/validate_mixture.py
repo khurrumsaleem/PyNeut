@@ -29,14 +29,14 @@ from _common import (ensure_openmc_data, energy_grid, compare_spectra,  # noqa: 
                      ratio_mean_uncertainty, N_BATCHES, _pyneut_spectrum)
 
 sys.path.insert(0, os.path.abspath(os.path.join(HERE, '..', '..')))
-from src.cross_section_read import CrossSectionReader  # noqa: E402
-from src.material import Nuclide  # noqa: E402
-from src.medium import Region, Sphere  # noqa: E402
-from src.vt_calc import VelocitySampler  # noqa: E402
-from src.settings import Settings  # noqa: E402
-from src.random_number_generator import RNGHandler  # noqa: E402
-from src.simulation import simulate_single_particle  # noqa: E402
-from src.statistics import escape_statistics  # noqa: E402
+from pyneut.cross_section_read import CrossSectionReader  # noqa: E402
+from pyneut.material import Nuclide  # noqa: E402
+from pyneut.medium import Region, Sphere  # noqa: E402
+from pyneut.vt_calc import VelocitySampler  # noqa: E402
+from pyneut.settings import Settings  # noqa: E402
+from pyneut.random_number_generator import RNGHandler  # noqa: E402
+from pyneut.simulation import simulate_single_particle  # noqa: E402
+from pyneut.statistics import escape_statistics  # noqa: E402
 
 ENDF = os.path.abspath(os.path.join(HERE, '..', '..', 'endfb'))
 

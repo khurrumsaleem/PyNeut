@@ -12,13 +12,13 @@ import os
 import numpy as np
 import pytest
 
-from src.cross_section_read import CrossSectionReader
-from src.material import Material, Nuclide
-from src.medium import Region, Sphere
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.simulation import simulate_single_particle
-from src.vt_calc import VelocitySampler
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Material, Nuclide
+from pyneut.medium import Region, Sphere
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.simulation import simulate_single_particle
+from pyneut.vt_calc import VelocitySampler
 
 ENDF = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "endfb")
 HAVE_DATA = os.path.exists(os.path.join(ENDF, "neutron", "Pb208.h5"))

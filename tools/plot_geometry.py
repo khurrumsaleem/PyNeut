@@ -183,7 +183,7 @@ def pincell_media():
     Containment and priority are all the renderer needs, so this skips the
     nuclide compositions and stays runnable without the ENDF/B library.
     """
-    from src.medium import Region, Cylinder, Box
+    from pyneut.medium import Region, Cylinder, Box
 
     half = PITCH / 2.0
     pellet = Cylinder("z", R_PELLET, (0, 0, 0))

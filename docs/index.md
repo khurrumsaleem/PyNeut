@@ -237,7 +237,7 @@ one for any model with `tools/plot_geometry.py`.
 
 ## Vector engine
 
-`src/vector_transport.py` advances the whole particle bank with NumPy, one
+`pyneut/vector_transport.py` advances the whole particle bank with NumPy, one
 event (a free flight followed by a crossing or collision) per pass. It
 implements the same physics as the per-history kernel in `simulation.py`.
 Because RNG draws are consumed in a different order, the two engines are

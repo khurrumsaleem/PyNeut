@@ -11,8 +11,8 @@ except ImportError:
     TRIMESH_AVAILABLE = False
 
 # Import your actual source code
-from src.medium import Region, Plane, Sphere, Cylinder, Box
-from src.geometry import calculate_nearest_boundary
+from pyneut.medium import Region, Plane, Sphere, Cylinder, Box
+from pyneut.geometry import calculate_nearest_boundary
 
 # ==========================================
 # Trimesh Helper Functions (The "Ground Truth")

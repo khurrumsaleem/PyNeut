@@ -1,11 +1,11 @@
-from src.cross_section_read import CrossSectionReader
-from src.vt_calc import VelocitySampler
-from src.simulation import simulate_single_particle
-from src.material import Material
-from src.medium import Region, Sphere
-from src.tally import Tally
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.vt_calc import VelocitySampler
+from pyneut.simulation import simulate_single_particle
+from pyneut.material import Material
+from pyneut.medium import Region, Sphere
+from pyneut.tally import Tally
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
 from multiprocessing import Pool
 import time
 import numpy as np

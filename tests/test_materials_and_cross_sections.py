@@ -2,9 +2,9 @@ import os
 
 import pytest
 import numpy as np
-from src.material import Material
-from src.cross_section_read import CrossSectionReader
-from src.vt_calc import VelocitySampler
+from pyneut.material import Material
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.vt_calc import VelocitySampler
 
 ENDF = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "endfb")
 HAVE_DATA = os.path.exists(os.path.join(ENDF, "neutron", "Pb208.h5"))

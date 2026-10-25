@@ -1,6 +1,6 @@
 import pytest
-from src.medium import Region, Box
-from src.geometry import calculate_nearest_boundary
+from pyneut.medium import Region, Box
+from pyneut.geometry import calculate_nearest_boundary
 
 def test_nested_region_crash():
     """

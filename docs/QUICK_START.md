@@ -51,14 +51,14 @@ each script so that each one runs on its own:
 import numpy as np
 from multiprocessing import Pool
 
-from src.cross_section_read import CrossSectionReader
-from src.material import Material, NEUTRON_MASS_AMU
-from src.medium import Region, Plane, Box
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.simulation import simulate_single_particle
-from src.tally import Tally
-from src.vt_calc import VelocitySampler
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Material, NEUTRON_MASS_AMU
+from pyneut.medium import Region, Plane, Box
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.simulation import simulate_single_particle
+from pyneut.tally import Tally
+from pyneut.vt_calc import VelocitySampler
 
 AWR = 206.190                                     # Pb208
 reader = CrossSectionReader("./endfb")
@@ -78,14 +78,14 @@ A neutron that leaves every region has leaked.
 import numpy as np
 from multiprocessing import Pool
 
-from src.cross_section_read import CrossSectionReader
-from src.material import Material, NEUTRON_MASS_AMU
-from src.medium import Region, Box
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.simulation import simulate_single_particle
-from src.tally import Tally
-from src.vt_calc import VelocitySampler
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Material, NEUTRON_MASS_AMU
+from pyneut.medium import Region, Box
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.simulation import simulate_single_particle
+from pyneut.tally import Tally
+from pyneut.vt_calc import VelocitySampler
 
 AWR = 206.190
 
@@ -144,14 +144,14 @@ mode for it.
 import numpy as np
 from multiprocessing import Pool
 
-from src.cross_section_read import CrossSectionReader
-from src.material import Material, NEUTRON_MASS_AMU
-from src.medium import Region, Cylinder, Plane, Box
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.simulation import simulate_single_particle
-from src.tally import Tally
-from src.vt_calc import VelocitySampler
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Material, NEUTRON_MASS_AMU
+from pyneut.medium import Region, Cylinder, Plane, Box
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.simulation import simulate_single_particle
+from pyneut.tally import Tally
+from pyneut.vt_calc import VelocitySampler
 
 AWR = 206.190
 
@@ -225,7 +225,7 @@ history returns those removals as `absorbed_coords`, a list of
 map:
 
 ```python
-from src.mesh import MeshTally
+from pyneut.mesh import MeshTally
 
 mesh = MeshTally(x_bounds=(-15, 15), y_bounds=(-15, 15), z_bounds=(-15, 15),
                  dims=(40, 40, 40))
@@ -277,14 +277,14 @@ regions.
 import numpy as np
 from multiprocessing import Pool
 
-from src.cross_section_read import CrossSectionReader
-from src.material import Material
-from src.medium import Region, Sphere
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.simulation import simulate_single_particle
-from src.tally import Tally
-from src.vt_calc import VelocitySampler
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Material
+from pyneut.medium import Region, Sphere
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.simulation import simulate_single_particle
+from pyneut.tally import Tally
+from pyneut.vt_calc import VelocitySampler
 
 if __name__ == "__main__":
     reader = CrossSectionReader("./endfb")
@@ -330,7 +330,7 @@ builds the BEAVRS pin cell. In a fixed-source problem with no leakage, every
 history ends in absorption or roulette:
 
 ```python
-from src.medium import Plane, Region
+from pyneut.medium import Plane, Region
 
 half = 0.63
 walls = [Plane(-1, 0, 0, half, boundary_type="reflective"),   # x >= -half
@@ -356,13 +356,13 @@ published k_eff = 1.0000):
 ```python
 from multiprocessing import Pool
 
-from src.criticality import run_keff, uniform_sphere_source
-from src.cross_section_read import CrossSectionReader
-from src.material import Nuclide
-from src.medium import Region, Sphere
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.vt_calc import VelocitySampler
+from pyneut.criticality import run_keff, uniform_sphere_source
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Nuclide
+from pyneut.medium import Region, Sphere
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.vt_calc import VelocitySampler
 
 R = 8.7407                                   # cm
 # (element, atoms/b-cm, AWR, molar mass)
@@ -393,7 +393,7 @@ OpenMC alongside, is `Validation/OpenMC_Comparison/validate_keff.py --benchmarks
 
 ## 9. The vector engine
 
-`src.vector_transport` runs the same physics on a whole bank at once and is
+`pyneut.vector_transport` runs the same physics on a whole bank at once and is
 5–64× faster on a single core. It works with arrays, not dicts:
 
 - The source is a dict of equal-length arrays `x, y, z, u, v, w, energy`
@@ -405,12 +405,12 @@ OpenMC alongside, is `Validation/OpenMC_Comparison/validate_keff.py --benchmarks
 ```python
 import numpy as np
 
-from src import vector_transport as vt
-from src.cross_section_read import CrossSectionReader
-from src.material import Nuclide
-from src.medium import Region, Sphere
-from src.settings import Settings
-from src.statistics import escape_statistics
+from pyneut import vector_transport as vt
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Nuclide
+from pyneut.medium import Region, Sphere
+from pyneut.settings import Settings
+from pyneut.statistics import escape_statistics
 
 reader = CrossSectionReader("./endfb")
 lead = Nuclide("Pb208", 11.35 * 6.022e23 / (206.190 * 1.00866491588), 206.190)

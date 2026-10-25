@@ -1,13 +1,13 @@
 import pytest
 import numpy as np
-from src.physics import (
+from pyneut.physics import (
     calculate_E_cm_prime,
     calculate_E_prime,
     elastic_scattering,
     sample_new_direction_cosines
 )
-from src.vt_calc import VelocitySampler
-from src.random_number_generator import RNGHandler
+from pyneut.vt_calc import VelocitySampler
+from pyneut.random_number_generator import RNGHandler
 
 
 class TestEnergyConversions:

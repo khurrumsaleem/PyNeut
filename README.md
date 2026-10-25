@@ -75,7 +75,8 @@ pip install -e ".[test]"       # + pytest, trimesh, rtree
 pip install -e ".[validation]" # + openmc, matplotlib (OpenMC comparison suite)
 ```
 
-The package is imported as `src` (`from src.simulation import ...`).
+The package is imported as `pyneut` (`from pyneut.simulation import ...`), and
+installing it also provides a `pyneut` command.
 
 ### Nuclear data
 
@@ -97,14 +98,14 @@ A 2 MeV isotropic point source at the centre of a 10 cm Pb208 sphere:
 import numpy as np
 from multiprocessing import Pool
 
-from src.cross_section_read import CrossSectionReader
-from src.material import Material, NEUTRON_MASS_AMU
-from src.medium import Region, Sphere
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.simulation import simulate_single_particle
-from src.tally import Tally
-from src.vt_calc import VelocitySampler
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Material, NEUTRON_MASS_AMU
+from pyneut.medium import Region, Sphere
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.simulation import simulate_single_particle
+from pyneut.tally import Tally
+from pyneut.vt_calc import VelocitySampler
 
 AWR = 206.190  # Pb208 atomic-weight ratio (target mass / neutron mass), from the data file
 
@@ -149,7 +150,7 @@ engine. `main.py` is a complete mesh-tally run.
 ## Repository layout
 
 ```
-src/                       the code (imported as `src`)
+pyneut/                    the package
   cross_section_read.py      ENDF HDF5 reader: XS, angular/secondary distributions, ν̄, URR
   angular_distribution.py    tabulated elastic (MT 2) cosine sampling
   material.py                Material, Nuclide, Material.mixture
@@ -213,7 +214,6 @@ The full list, with how each item shows up in the validation, is in
    - Keep the element-alias map in one place.
    - Raise an error when a nuclide's data file is missing, instead of returning
      zero.
-   - Give the package a real name instead of `src`.
 
 ## Documentation
 

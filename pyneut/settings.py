@@ -1,4 +1,4 @@
-# src/settings.py
+# pyneut/settings.py
 
 class Settings:
     def __init__(self, mode="shielding", particles=1000, batches=10):

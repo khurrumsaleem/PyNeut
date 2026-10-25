@@ -52,14 +52,14 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.abspath(os.path.join(HERE, '..', '..')))
 
 from _common import ENDF_PATH as DEFAULT_ENDF, HAS_OPENMC  # noqa: E402
-from src.cross_section_read import CrossSectionReader  # noqa: E402
-from src.medium import Region, Cylinder, Box  # noqa: E402
-from src.material import Nuclide  # noqa: E402
-from src.vt_calc import VelocitySampler  # noqa: E402
-from src.settings import Settings  # noqa: E402
-from src.random_number_generator import RNGHandler  # noqa: E402
-from src.criticality import run_keff  # noqa: E402
-from src.physics import sample_watt_spectrum, watt_params_for  # noqa: E402
+from pyneut.cross_section_read import CrossSectionReader  # noqa: E402
+from pyneut.medium import Region, Cylinder, Box  # noqa: E402
+from pyneut.material import Nuclide  # noqa: E402
+from pyneut.vt_calc import VelocitySampler  # noqa: E402
+from pyneut.settings import Settings  # noqa: E402
+from pyneut.random_number_generator import RNGHandler  # noqa: E402
+from pyneut.criticality import run_keff  # noqa: E402
+from pyneut.physics import sample_watt_spectrum, watt_params_for  # noqa: E402
 
 NEUTRON_MASS_AMU = 1.00866491588
 

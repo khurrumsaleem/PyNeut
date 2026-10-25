@@ -21,9 +21,9 @@ sys.path.insert(0, PROJECT_ROOT)
 
 import openmc.data
 
-from src.cross_section_read import CrossSectionReader
-from src.simulation import _emit_secondary_neutron
-from src.random_number_generator import RNGHandler
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.simulation import _emit_secondary_neutron
+from pyneut.random_number_generator import RNGHandler
 
 ENDF = os.path.join(PROJECT_ROOT, 'endfb')
 

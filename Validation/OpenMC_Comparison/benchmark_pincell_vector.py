@@ -29,10 +29,10 @@ from validate_pincell import (  # noqa: E402
     PITCH, R_PELLET, build_openmc_materials, pyneut_composition,
     pyneut_mediums,
 )
-from src.cross_section_read import CrossSectionReader  # noqa: E402
-from src.settings import Settings                      # noqa: E402
-from src.physics import watt_params_for               # noqa: E402
-from src import vector_transport as vt                # noqa: E402
+from pyneut.cross_section_read import CrossSectionReader  # noqa: E402
+from pyneut.settings import Settings                      # noqa: E402
+from pyneut.physics import watt_params_for               # noqa: E402
+from pyneut import vector_transport as vt                # noqa: E402
 
 REF_JSON = os.path.join(HERE, 'pincell_reference.json')
 

@@ -22,14 +22,14 @@ sys.path.insert(0, HERE)
 from _common import ensure_openmc_data, ENDF_PATH, HAS_OPENMC  # noqa: E402
 
 sys.path.insert(0, os.path.abspath(os.path.join(HERE, '..', '..')))
-from src.cross_section_read import CrossSectionReader  # noqa: E402
-from src.material import Material  # noqa: E402
-from src.medium import Region, Sphere  # noqa: E402
-from src.vt_calc import VelocitySampler  # noqa: E402
-from src.settings import Settings  # noqa: E402
-from src.random_number_generator import RNGHandler  # noqa: E402
-from src.material import Nuclide  # noqa: E402
-from src.criticality import run_keff, uniform_sphere_source  # noqa: E402
+from pyneut.cross_section_read import CrossSectionReader  # noqa: E402
+from pyneut.material import Material  # noqa: E402
+from pyneut.medium import Region, Sphere  # noqa: E402
+from pyneut.vt_calc import VelocitySampler  # noqa: E402
+from pyneut.settings import Settings  # noqa: E402
+from pyneut.random_number_generator import RNGHandler  # noqa: E402
+from pyneut.material import Nuclide  # noqa: E402
+from pyneut.criticality import run_keff, uniform_sphere_source  # noqa: E402
 
 # Bare U235 metal: density and atomic-weight ratio (ENDF/B-VIII).
 U235_RHO, U235_M, U235_A = 18.74, 235.0, 233.0248

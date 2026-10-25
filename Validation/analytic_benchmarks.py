@@ -33,14 +33,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, '..'))
 sys.path.insert(0, PROJECT_ROOT)
 
-from src.cross_section_read import CrossSectionReader
-from src.material import Material
-from src.medium import Region, Box
-from src.physics import elastic_scattering
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.simulation import simulate_single_particle
-from src.vt_calc import VelocitySampler
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.material import Material
+from pyneut.medium import Region, Box
+from pyneut.physics import elastic_scattering
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.simulation import simulate_single_particle
+from pyneut.vt_calc import VelocitySampler
 
 ENDF = os.path.join(PROJECT_ROOT, 'endfb')
 _PASS_Z = 3.0     # |z| within 3σ counts as agreement

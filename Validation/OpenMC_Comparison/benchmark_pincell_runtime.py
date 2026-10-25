@@ -21,11 +21,11 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.abspath(os.path.join(HERE, '..', '..')))
 
 import validate_pincell as VP  # noqa: E402
-from src.cross_section_read import CrossSectionReader  # noqa: E402
-from src.vt_calc import VelocitySampler  # noqa: E402
-from src.settings import Settings  # noqa: E402
-from src.random_number_generator import RNGHandler  # noqa: E402
-from src.criticality import run_keff  # noqa: E402
+from pyneut.cross_section_read import CrossSectionReader  # noqa: E402
+from pyneut.vt_calc import VelocitySampler  # noqa: E402
+from pyneut.settings import Settings  # noqa: E402
+from pyneut.random_number_generator import RNGHandler  # noqa: E402
+from pyneut.criticality import run_keff  # noqa: E402
 
 
 def time_pyneut(endf, comps, n, gens, inactive, ncores):
