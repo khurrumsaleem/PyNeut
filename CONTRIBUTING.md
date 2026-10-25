@@ -27,9 +27,8 @@ pip install -e ".[validation]"    # + openmc, matplotlib for Validation/OpenMC_C
 ```
 
 The ENDF/B-VIII.0 nuclear data is **not** in the repository, because it is
-large and publicly available. Download the OpenMC-format HDF5 files into
-`endfb/neutron/` as the README describes before you run transport or
-validation.
+large and publicly available. Fetch it with `python tools/fetch_data.py`
+(see the README) before you run transport or validation.
 
 ## Running the tests
 

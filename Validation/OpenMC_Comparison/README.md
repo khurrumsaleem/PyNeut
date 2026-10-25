@@ -8,7 +8,9 @@ to read them are in the [validation report](../../docs/index.md).
 
 **Requirements:**
 - `pip install -e ".[validation]"`, which provides `openmc` and `matplotlib`.
-- The ENDF/B-VIII.0 HDF5 files in `endfb/neutron/`.
+- The ENDF/B-VIII.0 HDF5 files in `endfb/neutron/`, from
+  `python tools/fetch_data.py`. Its `--verify` confirms they are the snapshot
+  the committed tables were produced with.
 
 The OpenMC library file `endfb/cross_sections.xml` is built automatically from
 those files the first time a live run needs it.

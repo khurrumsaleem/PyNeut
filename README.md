@@ -96,12 +96,21 @@ installing it also provides a `pyneut` command.
 
 ### Nuclear data
 
-The ENDF/B-VIII.0 files are **not** in the repository. Download the OpenMC HDF5
-library from [openmc.org/data-libraries](https://openmc.org/data-libraries/)
-and put the `*.h5` files in `endfb/neutron/` (for example
-`endfb/neutron/Pb208.h5`). The fixed-source suite needs Al27, B10, Be9, C12,
-Cd112, Fe56, O16 and Pb208. The k-eigenvalue cases add U233/U234/U235/U238,
-Pu239/Pu240/Pu241 and Ga, and the pin cell needs its 36 nuclides.
+The ENDF/B-VIII.0 files are **not** in the repository. One script fetches
+the ones PyNeut uses from OpenMC's official HDF5 library
+([openmc.org/data-libraries](https://openmc.org/data-libraries/)) into
+`endfb/neutron/`:
+
+```bash
+python tools/fetch_data.py                      # all 50 nuclides (~0.8 GB kept)
+python tools/fetch_data.py --set fixed-source   # or: keff, pincell
+python tools/fetch_data.py --verify             # check the files you have
+```
+
+It checks every file against the SHA-256 of the snapshot the committed
+validation results were produced with (`tools/endfb-viii.0.sha256`), so a
+match means your results should reproduce the tables. The archive is
+streamed, and only the requested files are written.
 
 > A nuclide name with no matching file is an error, both in input files and
 > in the Python API, so a misspelt name cannot silently act as vacuum.
@@ -187,7 +196,7 @@ tests/                     pytest suite (42 tests need ENDF data and skip withou
 Validation/
   analytic_benchmarks.py     exact analytic checks, no OpenMC needed
   OpenMC_Comparison/         live PyNeut-vs-OpenMC suite, see its README
-tools/                     figure scripts (validation summary, geometry maps, spectra)
+tools/                     data fetch script, figure scripts (validation summary, geometry maps, spectra)
 docs/                      validation report, quick start, API reference, images
 Animation/                 Manim trajectory replay
 main.py                    end-to-end example with a mesh tally
