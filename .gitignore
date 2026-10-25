@@ -1,24 +1,26 @@
+# Python
 __pycache__/
-Monte_Carlo_Shielding.egg-info/
-all_trajectories.json
-
-# Generated OpenMC data library (machine-specific absolute paths)
-endfb/cross_sections.xml
-
-# Validation run artifacts
-#Validation/OpenMC_Comparison/openmc_runs/
-#Validation/OpenMC_Comparison/validation_results.csv
-#sValidation/OpenMC_Comparison/benchmark_*/
-
-# Windows / WSL metadata
-*:Zone.Identifier
+*.egg-info/
+build/
+.pytest_cache/
 .ipynb_checkpoints/
 
-#paper stuff
-paper_template/
-paper_speed/
+# Nuclear data (download separately, see README) and the OpenMC library
+# file generated from it (machine-specific absolute paths)
 endfb/
-joss/
+
+# Outputs written by main.py and the docs examples
+all_trajectories.json
+*.vtk
+
 # Subset validation runs (smoke tests, not the reference table)
 Validation/OpenMC_Comparison/validation_results_subset.csv
 Validation/OpenMC_Comparison/validation_manifest_subset.json
+
+# Windows / WSL metadata
+*:Zone.Identifier
+
+# Paper drafts (kept out of the repository)
+paper_template/
+paper_speed/
+joss/
