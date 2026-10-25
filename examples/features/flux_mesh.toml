@@ -1,0 +1,33 @@
+# A 2 MeV beam entering a lead block: the flux map on a 3-D mesh, written as
+# VTK for ParaView, with a coarse energy split (above and below 100 keV).
+#
+# Shows: a mesh flux tally (collision estimator) on the vector engine,
+# and mesh x energy filters together. `pyneut run` writes flux_map.vtk (summed
+# over energy) and flux_map.npz (the full mesh x energy arrays).
+
+[run]
+mode      = "fixed-source"
+particles = 20_000
+seed      = 32
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[surfaces]
+block = { type = "box", min = [0, -15, -15], max = [30, 15, 15] }
+world = { type = "box", min = [-5, -20, -20], max = [35, 20, 20] }
+
+[cells]
+lead = { region = "-block",          material = "lead" }
+air  = { region = "-world & +block", material = "void" }
+
+[source]
+space     = { type = "point", xyz = [-2, 0, 0] }
+direction = { type = "beam", direction = [1, 0, 0] }
+energy    = "2 MeV"
+
+[tallies.flux_map]
+type        = "flux"
+mesh        = { min = [0, -15, -15], max = [30, 15, 15], dims = [30, 15, 15] }
+energy_bins = ["1e-5 eV", "100 keV", "2.1 MeV"]

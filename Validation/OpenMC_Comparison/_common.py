@@ -25,7 +25,8 @@ from pyneut.material import Material, NEUTRON_MASS_AMU
 from pyneut.medium import Region, Sphere, Cylinder, Box, Plane
 from pyneut.random_number_generator import RNGHandler
 from pyneut.settings import Settings
-from pyneut.statistics import escape_statistics, ratio_mean_uncertainty
+from pyneut.statistics import batch_edges, escape_statistics, ratio_mean_uncertainty
+from pyneut.tallies import Scorer, TallyDef
 
 try:
     import openmc
@@ -210,8 +211,23 @@ def run_pyneut(case, n_particles=10000, n_batches=N_BATCHES):
         for s, r in zip(states, rngs)
     ]
 
+    # The leakage spectrum is scored per neutron as it leaks (pyneut.tallies),
+    # as OpenMC does. It used to be a histogram of each history's
+    # weight-averaged escape energy, which piles all of a history's leaked
+    # weight into one bin when (n,xn) makes it leak several neutrons: totals
+    # and mean energy stay exact, the spectrum shape does not.
+    e_bins = energy_grid(case['E'])
+    edges = batch_edges(n_particles, n_batches)
+    hist_batch = np.searchsorted(edges, np.arange(n_particles), side='right') - 1
+    cuts = np.linspace(0, n_particles, 8 * (os.cpu_count() or 1) + 1).astype(int)
+    tasks = [(args[lo:hi], hist_batch[lo:hi], e_bins, n_batches)
+             for lo, hi in zip(cuts[:-1], cuts[1:]) if hi > lo]
     with Pool() as pool:
-        results = pool.map(simulate_single_particle, args)
+        parts = pool.map(_leak_scored_chunk, tasks)
+    results = [r for part, _ in parts for r in part]
+    scorer = Scorer([TallyDef('leak', 'leakage', energy_bins=e_bins)], n_batches)
+    for _, state in parts:
+        scorer.merge(state)
 
     # Batch-means uncertainties: one (leaked weight, escape energy) per history,
     # including non-leakers (weight 0) so the leakage denominator is correct.
@@ -227,28 +243,22 @@ def run_pyneut(case, n_particles=10000, n_batches=N_BATCHES):
             counts[k] = counts.get(k, 0) + v
     stats['physics_counts'] = counts
 
-    # Per-history escape spectrum (same grid as OpenMC) for shape comparison,
-    # with batch-means per-bin uncertainties.
-    stats['spectrum'], stats['spectrum_sem'] = _pyneut_spectrum(
-        leaked_w, esc_e, energy_grid(case['E']), n_batches)
+    # Per-neutron leakage spectrum (same grid as OpenMC) for shape
+    # comparison, with batch-means per-bin uncertainties.
+    leak = scorer.finalize(np.diff(edges))['leak']
+    stats['spectrum'], stats['spectrum_sem'] = leak['mean'], leak['sem']
     return stats
 
 
-def _pyneut_spectrum(leaked_w, esc_e, e_bins, n_batches):
-    """Batch-means leakage spectrum (current per energy bin) and its SEM."""
-    from pyneut.statistics import batch_edges, mean_sem
-    edges = batch_edges(len(leaked_w), n_batches)
-    per_batch = []
-    for lo, hi in zip(edges[:-1], edges[1:]):
-        if hi <= lo:
-            continue
-        hist, _ = np.histogram(esc_e[lo:hi], bins=e_bins, weights=leaked_w[lo:hi])
-        per_batch.append(hist / (hi - lo))      # normalise per source history
-    per_batch = np.array(per_batch)
-    nb = per_batch.shape[0]
-    mean = per_batch.mean(axis=0)
-    sem = per_batch.std(axis=0, ddof=1) / np.sqrt(nb) if nb > 1 else np.full_like(mean, np.nan)
-    return mean, sem
+def _leak_scored_chunk(task):
+    """Run a slice of histories with a leakage Scorer (one per worker)."""
+    args, hist_batch, e_bins, n_batches = task
+    scorer = Scorer([TallyDef('leak', 'leakage', energy_bins=e_bins)], n_batches)
+    results = []
+    for a, b in zip(args, hist_batch):
+        scorer.batch = int(b)
+        results.append(simulate_single_particle(a + (scorer,)))
+    return results, scorer.state()
 
 
 # ---------------------------------------------------------------------------

@@ -97,3 +97,15 @@ axis   = "z"
 center = [0, 0, 0]
 radius = 0.39218
 range  = [-0.62992, 0.62992]
+
+# Tallies over the active generations, per fission-source neutron: the flux
+# in each cell split at 0.625 eV (thermal) and 100 keV (fast), and where
+# neutrons are absorbed. Neither changes k.
+[tallies.flux]
+type        = "flux"
+cells       = ["fuel", "gap", "clad", "water"]
+energy_bins = ["1e-5 eV", "0.625 eV", "100 keV", "20 MeV"]
+
+[tallies.absorption]
+type  = "absorption"
+cells = ["fuel", "clad", "water"]

@@ -2,12 +2,11 @@
 # 40 x 40 x 40 absorption mesh written as VTK for ParaView
 # (docs/images/mesh_tally_paraview.png shows the result).
 #
-# Shows: a capped cylinder, a mesh tally, and a world box around the model.
-# Mesh tallies run on the scalar engine for now.
+# Shows: a capped cylinder, a mesh absorption tally, and a world box around
+# the model.
 
 [run]
 mode      = "fixed-source"
-engine    = "scalar"
 particles = 20_000
 seed      = 12345
 

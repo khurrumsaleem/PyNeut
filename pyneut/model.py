@@ -35,7 +35,7 @@ from .medium import Box, Cylinder, Plane, Region, Sphere
 from .regions import compile_region, parse_region, surface_names
 from .sources import (CellSpace, Source, build_direction, build_energy,
                       build_space, to_states)
-from .statistics import batch_edges, escape_statistics, mean_sem
+from .statistics import batch_edges, mean_sem
 from .units import parse_energy
 
 try:
@@ -381,16 +381,24 @@ class TallySpec:
     type: str
     energy_bins: np.ndarray = None
     mesh: dict = None
-    box: tuple = None
+    box: dict = None
+    cells: list = None
+    estimator: str = None
+
+    @property
+    def scored(self):
+        """True for tallies the event Scorer handles (not keff/detector)."""
+        return self.type in ("leakage", "absorption", "flux")
 
 
 _TALLY_KEYS = {
     "leakage": {"type", "energy_bins"},
-    "absorption": {"type", "mesh"},
+    "absorption": {"type", "cells", "energy_bins", "mesh"},
+    "flux": {"type", "cells", "energy_bins", "mesh", "estimator"},
     "detector": {"type", "box"},
     "keff": {"type"},
 }
-_PLANNED = {"flux": "flux tallies", "current": "surface-current tallies"}
+_PLANNED = {"current": "surface-current tallies"}
 
 
 def _parse_bins(v):
@@ -415,15 +423,23 @@ def _parse_bins(v):
     return edges
 
 
-def _parse_tally(name, t, run, problems):
+def _parse_mesh(m):
+    if not (isinstance(m, dict) and set(m) == {"min", "max", "dims"} and _vec3(m["min"])
+            and _vec3(m["max"]) and isinstance(m["dims"], list) and len(m["dims"]) == 3
+            and all(_is_int(d) and d > 0 for d in m["dims"])
+            and all(b > a for a, b in zip(m["min"], m["max"]))):
+        raise ValueError("must be {min = [x,y,z], max = [x,y,z], dims = [nx,ny,nz]}")
+    return m
+
+
+def _parse_tally(name, t, run, cells, problems):
     where = f"tallies.{name}"
     if not isinstance(t, dict) or "type" not in t:
         problems.add(where, f"needs a 'type' ({', '.join(_TALLY_KEYS)})")
         return None
     kind = t["type"]
     if kind in _PLANNED:
-        problems.add(f"{where}.type", f"{_PLANNED[kind]} are not available yet "
-                     "(planned with the tally interface, issue #6)")
+        problems.add(f"{where}.type", f"{_PLANNED[kind]} are not available yet")
         return None
     if kind not in _TALLY_KEYS:
         problems.add(f"{where}.type", f"unknown tally type {kind!r}" + _suggest(str(kind), _TALLY_KEYS))
@@ -432,27 +448,49 @@ def _parse_tally(name, t, run, problems):
         return None
     spec = TallySpec(name, kind)
     if run is not None:
-        if run.mode == "eigenvalue" and kind != "keff":
-            problems.add(where, "eigenvalue mode supports only keff tallies for now")
+        if run.mode == "eigenvalue" and kind == "detector":
+            problems.add(where, "detector tallies are fixed-source only")
             return None
         if run.mode == "fixed-source" and kind == "keff":
             problems.add(where, "keff tallies need run.mode = \"eigenvalue\"")
             return None
+    ok = True
     if "energy_bins" in t:
         try:
             spec.energy_bins = _parse_bins(t["energy_bins"])
         except ValueError as e:
             problems.add(f"{where}.energy_bins", str(e))
-            return None
-    if kind == "absorption" and "mesh" in t:
-        m = t["mesh"]
-        if not (isinstance(m, dict) and set(m) == {"min", "max", "dims"} and _vec3(m["min"])
-                and _vec3(m["max"]) and isinstance(m["dims"], list) and len(m["dims"]) == 3
-                and all(_is_int(d) and d > 0 for d in m["dims"])
-                and all(b > a for a, b in zip(m["min"], m["max"]))):
-            problems.add(f"{where}.mesh", "must be {min = [x,y,z], max = [x,y,z], dims = [nx,ny,nz]}")
-            return None
-        spec.mesh = m
+            ok = False
+    if "mesh" in t:
+        try:
+            spec.mesh = _parse_mesh(t["mesh"])
+        except ValueError as e:
+            problems.add(f"{where}.mesh", str(e))
+            ok = False
+    if "cells" in t:
+        names = t["cells"]
+        if not (isinstance(names, list) and names and all(isinstance(c, str) for c in names)):
+            problems.add(f"{where}.cells", "must be a non-empty list of cell names")
+            ok = False
+        else:
+            for c in names:
+                if c not in cells:
+                    problems.add(f"{where}.cells", f"unknown cell {c!r}" + _suggest(c, cells))
+                    ok = False
+            if len(set(names)) != len(names):
+                problems.add(f"{where}.cells", "lists a cell twice")
+                ok = False
+            spec.cells = list(names)
+    if kind == "flux":
+        est = t.get("estimator", "collision" if spec.mesh else "track-length")
+        if est not in ("track-length", "collision"):
+            problems.add(f"{where}.estimator", f"must be 'track-length' or 'collision', got {est!r}")
+            ok = False
+        elif est == "track-length" and spec.mesh:
+            problems.add(f"{where}.estimator", "a mesh flux uses the collision estimator "
+                         "(track-length mesh flux is not available yet)")
+            ok = False
+        spec.estimator = est
     if kind == "detector":
         b = t.get("box")
         if not (isinstance(b, dict) and set(b) == {"min", "max"} and _vec3(b["min"])
@@ -460,12 +498,10 @@ def _parse_tally(name, t, run, problems):
             problems.add(f"{where}.box", "must be {min = [x,y,z], max = [x,y,z]}")
             return None
         spec.box = b
-    if run is not None and run.engine == "vector" and (spec.mesh or kind == "detector"):
-        what = "mesh tallies" if spec.mesh else "detector tallies"
-        problems.add(where, f"{what} need run.engine = \"scalar\" for now (the vector "
-                            "engine gains them with the tally interface, issue #6)")
-        return None
-    return spec
+        if run is not None and run.engine == "vector":
+            problems.add(where, "detector tallies need run.engine = \"scalar\" for now")
+            return None
+    return spec if ok else None
 
 
 # ------------------------------------------------------------------- model
@@ -529,7 +565,7 @@ class Model:
             problems.add("tallies", "must be a table of named tallies")
             tally_tables = {}
         for name, t in tally_tables.items():
-            tally = _parse_tally(name, t, self.run, problems)
+            tally = _parse_tally(name, t, self.run, self.cells, problems)
             if tally is not None:
                 self.tallies[name] = tally
         if sum(1 for t in self.tallies.values() if t.type == "detector") > 1:
@@ -637,78 +673,95 @@ class Model:
                 "counters": out.pop("_counters", {})}
         return Results(out, info, self._provenance(awr))
 
+    def _tally_defs(self):
+        """TallyDefs for the event Scorer, in the order of self.cells."""
+        from .tallies import TallyDef
+        names = list(self.cells)
+        defs = []
+        for t in self.tallies.values():
+            if not t.scored:
+                continue
+            cell_map = None
+            if t.cells:
+                cell_map = np.full(len(names), -1, dtype=np.int64)
+                for i, c in enumerate(t.cells):
+                    cell_map[names.index(c)] = i
+            defs.append(TallyDef(t.name, t.type, cell_map=cell_map, cell_names=t.cells,
+                                 mesh=t.mesh, energy_bins=t.energy_bins,
+                                 estimator=t.estimator))
+        return defs
+
     def _solve_fixed_source(self, reader, mediums, source, transport_ss, workers):
+        from .tallies import Scorer
         run = self.run
         n = run.particles
         settings = run.settings()
+        edges = batch_edges(n, run.batches)
+        n_batches = len(edges) - 1
+        hist_batch = np.searchsorted(edges, np.arange(n), side="right") - 1
+        scorer = Scorer(self._tally_defs(), n_batches)
         detector = next((t for t in self.tallies.values() if t.type == "detector"), None)
-        want_coords = any(t.mesh for t in self.tallies.values())
 
         if run.engine == "scalar":
-            from .random_number_generator import RNGHandler
-            from .simulation import simulate_single_particle
-            from .vt_calc import VelocitySampler
             bounds = None
             if detector is not None:
                 (x0, y0, z0), (x1, y1, z1) = detector.box["min"], detector.box["max"]
                 bounds = (x0, x1, y0, y1, z0, z1)
-            placeholder = VelocitySampler(1.0)
-            args = [(state, reader, mediums, 1.0, 1.0, placeholder, bounds, False,
-                     RNGHandler(child), settings)
-                    for state, child in zip(to_states(source), transport_ss.spawn(n))]
+            states, seeds = to_states(source), transport_ss.spawn(n)
+            n_chunks = max(1, min(n, 8 * workers))
+            cuts = np.linspace(0, n, n_chunks + 1).astype(int)
+            tasks = [(states[lo:hi], seeds[lo:hi], hist_batch[lo:hi], reader, mediums,
+                      settings, bounds, scorer.defs, n_batches)
+                     for lo, hi in zip(cuts[:-1], cuts[1:]) if hi > lo]
             if workers > 1:
                 from multiprocessing import Pool
                 with Pool(workers) as pool:
-                    per = pool.map(simulate_single_particle, args,
-                                   chunksize=max(1, n // (workers * 8)))
+                    parts = pool.map(_scalar_chunk, tasks)
             else:
-                per = [simulate_single_particle(a) for a in args]
-            lw = np.array([r["final_weight"] for r in per])
-            ee = np.array([r["final_energy"] for r in per])
-            absorbed = np.array([r["absorbed_weight"] for r in per])
-            detected = np.array([r["region_detected"] for r in per])
-            coords = [r["absorbed_coords"] for r in per] if want_coords else None
+                parts = [_scalar_chunk(task) for task in tasks]
+            detected = np.concatenate([p["detected"] for p in parts])
             counters = {}
-            for r in per:
-                for k, v in r["physics_counts"].items():
+            for p in parts:
+                scorer.merge(p["scorer"])
+                for k, v in p["counters"].items():
                     counters[k] = counters.get(k, 0) + v
         else:
             from . import vector_transport as vt
+            scorer.set_batches(hist_batch)
             if workers > 1:
                 res = vt.run_transport_parallel(
                     self.data_dir, mediums, source, settings, n_workers=workers,
                     seed=int(transport_ss.generate_state(1)[0]),
-                    temperature=run.temperature)
+                    temperature=run.temperature, scorer=scorer)
             else:
                 res = vt.run_transport(reader, mediums, source,
-                                       np.random.default_rng(transport_ss), settings)
-            lw, ee = res["leaked_weight"], res["escape_energy"]
-            absorbed, detected, coords = res["absorbed_weight"], None, None
-            counters = res["counters"]
+                                       np.random.default_rng(transport_ss), settings,
+                                       scorer=scorer)
+            detected, counters = None, res["counters"]
 
-        edges = batch_edges(n, run.batches)
-        out = {"_counters": counters}
-        for t in self.tallies.values():
-            if t.type == "leakage":
-                out[t.name] = _leakage_result(lw, ee, n, run.batches, edges, t.energy_bins)
-            elif t.type == "absorption":
-                out[t.name] = _absorption_result(absorbed, coords, n, edges, t.mesh)
-            elif t.type == "detector":
-                frac = [detected[lo:hi].mean() for lo, hi in zip(edges[:-1], edges[1:])]
-                m, s = mean_sem(frac)
-                out[t.name] = {"type": "detector", "fraction": m, "fraction_sem": s,
-                               "box": t.box}
-        return out
+        out = scorer.finalize(np.diff(edges))
+        out["_counters"] = counters
+        if detector is not None:
+            frac = [detected[lo:hi].mean() for lo, hi in zip(edges[:-1], edges[1:])]
+            m, sem = mean_sem(frac)
+            out[detector.name] = {"type": "detector", "fraction": m, "fraction_sem": sem,
+                                  "box": detector.box}
+        return {name: out[name] for name in [*self.tallies, "_counters"]}
 
     def _solve_eigenvalue(self, reader, mediums, source, transport_ss, workers):
+        from .tallies import Scorer
         run = self.run
         settings = run.settings()
         seed = int(transport_ss.generate_state(1)[0] % (2 ** 31))
+        n_active = run.generations - run.inactive
+        defs = self._tally_defs()
+        scorer = Scorer(defs, n_active) if defs else None
+        kwargs = dict(generations=run.generations, inactive=run.inactive, seed=seed,
+                      scorer=scorer)
         if run.engine == "scalar":
             from .criticality import run_keff
             from .vt_calc import VelocitySampler
             states = to_states(source)
-            kwargs = dict(generations=run.generations, inactive=run.inactive, seed=seed)
             if workers > 1:
                 from multiprocessing import Pool
                 with Pool(workers) as pool:
@@ -722,18 +775,26 @@ class Model:
             if workers > 1:
                 logger.warning("the vector k-eigenvalue solver runs in one process; "
                                "ignoring run.workers = %d", workers)
-            k = vt.run_keff_vector(reader, mediums, source, settings,
-                                   generations=run.generations, inactive=run.inactive,
-                                   seed=seed)
-        result = {"type": "keff", "k_eff": k["k_eff"], "k_eff_sem": k["k_sem"],
-                  "k_source": k["k_source"], "k_source_sem": k["k_source_sem"],
-                  "active_generations": len(k["active_k"]),
-                  "cycles": [{"generation": g, "k_collision": kc, "k_source": ks,
-                              "active": a} for g, kc, ks, a in k["cycles"]]}
+            k = vt.run_keff_vector(reader, mediums, source, settings, **kwargs)
+        keff = {"type": "keff", "k_eff": k["k_eff"], "k_eff_sem": k["k_sem"],
+                "k_source": k["k_source"], "k_source_sem": k["k_source_sem"],
+                "active_generations": len(k["active_k"]),
+                "cycles": [{"generation": g, "k_collision": kc, "k_source": ks,
+                            "active": a} for g, kc, ks, a in k["cycles"]]}
         if len(k["cycles"]) < run.generations:
-            result["note"] = (f"fission chain died out after {len(k['cycles'])} "
-                              "generations")
-        return {t.name: result for t in self.tallies.values()} | {"_counters": {}}
+            keff["note"] = (f"fission chain died out after {len(k['cycles'])} "
+                            "generations")
+        out = {"_counters": {}}
+        done = len(k["active_k"])
+        if scorer is not None and done > 0:
+            # tallies are per source neutron of each active generation
+            out.update(scorer.finalize(np.full(done, run.particles)))
+        for t in self.tallies.values():
+            if t.type == "keff":
+                out[t.name] = keff
+            elif t.name not in out:
+                out[t.name] = {"type": t.type, "note": "no active generations completed"}
+        return {name: out[name] for name in [*self.tallies, "_counters"]}
 
     # ----------------------------------------------------------- provenance
     def resolved_input(self):
@@ -741,11 +802,21 @@ class Model:
         spec = {k: v for k, v in self.spec.items()}
         spec["run"] = {k: v for k, v in asdict(self.run).items()}
         spec["run"]["data"] = self.data_dir
-        spec["tallies"] = {name: {"type": t.type, **({"energy_bins": t.energy_bins.tolist()}
-                                                      if t.energy_bins is not None else {}),
-                                  **({"mesh": t.mesh} if t.mesh else {}),
-                                  **({"box": t.box} if t.box else {})}
-                           for name, t in self.tallies.items()}
+        tallies = {}
+        for name, t in self.tallies.items():
+            entry = {"type": t.type}
+            if t.cells:
+                entry["cells"] = t.cells
+            if t.energy_bins is not None:
+                entry["energy_bins"] = t.energy_bins.tolist()
+            if t.mesh:
+                entry["mesh"] = t.mesh
+            if t.estimator:
+                entry["estimator"] = t.estimator
+            if t.box:
+                entry["box"] = t.box
+            tallies[name] = entry
+        spec["tallies"] = tallies
         return spec
 
     def _provenance(self, awr):
@@ -873,51 +944,27 @@ class Model:
         return "\n".join(lines)
 
 
-# ---------------------------------------------------------- tally results
-def _batch_bins(values_per_batch):
-    arr = np.array(values_per_batch)
-    mean = arr.mean(axis=0)
-    sem = arr.std(axis=0, ddof=1) / np.sqrt(arr.shape[0]) if arr.shape[0] > 1 else np.full_like(mean, np.nan)
-    return mean, sem
-
-
-def _leakage_result(lw, ee, n, n_batches, edges, bins):
-    stats = escape_statistics(lw, ee, n, n_batches)
-    out = {"type": "leakage", "total": stats["leakage"], "total_sem": stats["leakage_sem"],
-           "mean_energy": stats["avg_energy"], "mean_energy_sem": stats["avg_energy_sem"]}
-    if bins is not None:
-        per_batch = []
-        for lo, hi in zip(edges[:-1], edges[1:]):
-            h, _ = np.histogram(ee[lo:hi], bins=bins, weights=lw[lo:hi])
-            per_batch.append(h / (hi - lo))
-        mean, sem = _batch_bins(per_batch)
-        out.update(energy_bins=bins.tolist(), spectrum=mean.tolist(), spectrum_sem=sem.tolist())
-    return out
-
-
-def _absorption_result(absorbed, coords, n, edges, mesh):
-    if np.ndim(absorbed) == 0:        # vector engine: total only
-        out = {"type": "absorption", "total": float(absorbed) / n, "total_sem": None}
-    else:
-        m, s = mean_sem([absorbed[lo:hi].mean() for lo, hi in zip(edges[:-1], edges[1:])])
-        out = {"type": "absorption", "total": m, "total_sem": s}
-    if mesh is not None:
-        lo3, hi3, dims = (np.array(mesh[k], dtype=float) for k in ("min", "max", "dims"))
-        dims = dims.astype(int)
-        per_batch = []
-        for lo, hi in zip(edges[:-1], edges[1:]):
-            grid = np.zeros(dims)
-            pts = [c for hist in coords[lo:hi] for c in hist]
-            if pts:
-                p = np.array(pts)
-                idx = np.floor((p[:, :3] - lo3) / (hi3 - lo3) * dims).astype(int)
-                ok = np.all((idx >= 0) & (idx < dims), axis=1)
-                np.add.at(grid, tuple(idx[ok].T), p[ok, 3])
-            per_batch.append(grid / (hi - lo))
-        mean, sem = _batch_bins(per_batch)
-        out["mesh"] = {"min": mesh["min"], "max": mesh["max"], "dims": mesh["dims"],
-                       "mean": mean, "sem": sem}
-    return out
+# ------------------------------------------------------- scalar engine work
+def _scalar_chunk(task):
+    """Run a contiguous slice of histories on the scalar engine with its own
+    Scorer; returns the scorer totals, detector flags and event counters."""
+    from .random_number_generator import RNGHandler
+    from .simulation import simulate_single_particle
+    from .tallies import Scorer
+    from .vt_calc import VelocitySampler
+    states, seeds, batches, reader, mediums, settings, bounds, defs, n_batches = task
+    scorer = Scorer(defs, n_batches)
+    placeholder = VelocitySampler(1.0)
+    detected = np.zeros(len(states), dtype=bool)
+    counters = {}
+    for i, (state, seed) in enumerate(zip(states, seeds)):
+        scorer.batch = int(batches[i])
+        r = simulate_single_particle((state, reader, mediums, 1.0, 1.0, placeholder,
+                                      bounds, False, RNGHandler(seed), settings, scorer))
+        detected[i] = r["region_detected"]
+        for k, v in r["physics_counts"].items():
+            counters[k] = counters.get(k, 0) + v
+    return {"scorer": scorer.state(), "detected": detected, "counters": counters}
 
 
 def _git_state():
@@ -950,13 +997,14 @@ class Results:
         return iter(self.tallies)
 
     def to_dict(self):
+        """JSON-ready results. Mesh arrays are left to the files save() writes."""
         def clean(v):
             if isinstance(v, dict):
                 return {k: clean(x) for k, x in v.items()}
             if isinstance(v, (list, tuple)):
                 return [clean(x) for x in v]
             if isinstance(v, np.ndarray):
-                return v.tolist()
+                return clean(v.tolist())
             if isinstance(v, (np.floating, float)):
                 return None if not np.isfinite(v) else float(v)
             if isinstance(v, np.integer):
@@ -967,25 +1015,36 @@ class Results:
         tallies = {}
         for name, t in self.tallies.items():
             t = dict(t)
-            if "mesh" in t:
-                t["mesh"] = {k: v for k, v in t["mesh"].items() if k not in ("mean", "sem")}
-                t["mesh"]["files"] = [f"{name}.vtk", f"{name}.npz"]
+            if "x" in t.get("axes", ()):
+                t.pop("mean"), t.pop("sem")
+                t["files"] = [f"{name}.vtk", f"{name}.npz"]
             tallies[name] = t
         return clean({"tallies": tallies, "run": self.info, "provenance": self.provenance})
 
     def save(self, directory):
-        """Write results.json, plus <tally>.vtk and <tally>.npz per mesh tally."""
+        """Write results.json, plus <tally>.vtk and <tally>.npz per mesh tally.
+
+        The NPZ holds the full mean and sem arrays (axes as in the tally's
+        `axes`); the VTK holds the mean summed over any cell and energy axes.
+        """
         os.makedirs(directory, exist_ok=True)
         for name, t in self.tallies.items():
-            if "mesh" in t:
-                from .mesh import MeshTally
-                m = t["mesh"]
-                mt = MeshTally(*zip(m["min"], m["max"]), tuple(m["dims"]))
-                mt.data = m["mean"]
-                mt.write_vtk(os.path.join(directory, f"{name}.vtk"))
-                np.savez_compressed(os.path.join(directory, f"{name}.npz"),
-                                    mean=m["mean"], sem=m["sem"],
-                                    min=m["min"], max=m["max"])
+            if "x" not in t.get("axes", ()):
+                continue
+            from .mesh import MeshTally
+            m = t["mesh"]
+            axes = t["axes"]
+            grid = t["mean"]
+            for ax in ("energy", "cell"):
+                if ax in axes:
+                    grid = grid.sum(axis=axes.index(ax))
+            mt = MeshTally(*zip(m["min"], m["max"]), tuple(m["dims"]))
+            mt.data = grid
+            mt.write_vtk(os.path.join(directory, f"{name}.vtk"))
+            extra = {"energy_bins": t["energy_bins"]} if "energy_bins" in t else {}
+            np.savez_compressed(os.path.join(directory, f"{name}.npz"), mean=t["mean"],
+                                sem=t["sem"], axes=np.array(axes), min=m["min"],
+                                max=m["max"], dims=m["dims"], **extra)
         path = os.path.join(directory, "results.json")
         with open(path, "w") as f:
             json.dump(self.to_dict(), f, indent=2)
@@ -999,17 +1058,37 @@ class Results:
                      + f", {i['wall_time_s']:.1f} s")
 
         def pm(v, s, fmt):
+            if v is None:
+                return "n/a"
             return f"{v:{fmt}}" + (f" ± {s:{fmt}}" if s is not None and np.isfinite(s) else "")
+
+        def per_cell(t, fmt):
+            if t.get("axes") != ["cell"]:
+                return ""
+            return "; " + ", ".join(f"{c} {pm(m, e, fmt)}"
+                                    for c, m, e in zip(t["cells"], t["mean"], t["sem"]))
+
+        def binned(t):
+            axes = [a for a in t.get("axes", []) if a != "cell" or t["axes"] != ["cell"]]
+            return f" ({' × '.join(axes)} bins on save)" if axes else ""
+
         for name, t in self.tallies.items():
-            if t["type"] == "leakage":
+            kind = t["type"]
+            if "note" in t and kind != "keff":
+                lines.append(f"  {name}: {t['note']}")
+            elif kind == "leakage":
                 lines.append(f"  {name}: leakage {pm(t['total'], t['total_sem'], '.5f')}, "
-                             f"mean escape energy {pm(t['mean_energy'], t['mean_energy_sem'], '.4e')} eV")
-            elif t["type"] == "absorption":
+                             f"mean escape energy {pm(t['mean_energy'], t['mean_energy_sem'], '.4e')} eV"
+                             + binned(t))
+            elif kind == "absorption":
                 lines.append(f"  {name}: absorbed {pm(t['total'], t['total_sem'], '.5f')} per source neutron"
-                             + (" (mesh written on save)" if "mesh" in t else ""))
-            elif t["type"] == "detector":
+                             + per_cell(t, ".5f") + binned(t))
+            elif kind == "flux":
+                lines.append(f"  {name}: flux ({t['estimator']}) {pm(t['total'], t['total_sem'], '.4g')} "
+                             "cm per source neutron" + per_cell(t, ".4g") + binned(t))
+            elif kind == "detector":
                 lines.append(f"  {name}: reached detector {pm(t['fraction'], t['fraction_sem'], '.5f')}")
-            elif t["type"] == "keff":
+            elif kind == "keff":
                 lines.append(f"  {name}: k_eff {pm(t['k_eff'], t['k_eff_sem'], '.5f')} "
                              f"(generation estimator {pm(t['k_source'], t['k_source_sem'], '.5f')})"
                              + (f"; {t['note']}" if "note" in t else ""))

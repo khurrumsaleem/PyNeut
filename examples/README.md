@@ -41,7 +41,7 @@ any case on its own.
 | `validation/eigenvalue/godiva.toml` | Godiva, HEU-MET-FAST-001 |
 | `validation/eigenvalue/jezebel23.toml` | Jezebel-23, U233-MET-FAST-001 |
 | `validation/eigenvalue/jezebel.toml` | Jezebel, PU-MET-FAST-001 |
-| `validation/pincell_beavrs.toml` | BEAVRS pin cell, k∞ (slow) |
+| `validation/pincell_beavrs.toml` | BEAVRS pin cell, k∞, with a three-group flux and absorption per cell (slow) |
 
 The validation reference table was produced with the scalar engine. To run a
 case the same way, add `--engine scalar`.
@@ -52,6 +52,8 @@ case the same way, add `--engine scalar`.
 |------|-------|
 | `features/slab_detector.toml` | beam source, box surfaces, cells carved with `~` and `\|`, analog transport, detector tally |
 | `features/mesh_b10_cylinder.toml` | capped cylinder, mesh absorption tally written as VTK (the `main.py` demo) |
+| `features/flux_by_cell.toml` | flux spectrum per cell (track-length), collision-estimator flux, absorption per cell |
+| `features/flux_mesh.toml` | 3-D flux map with an energy split on the vector engine, written as VTK |
 | `features/infinite_medium.toml` | reflective boundaries |
 | `features/region_operations.toml` | every region operator: `&`, `\|`, `~`, parentheses |
 | `features/layered_shield.toml` | several materials in concentric shells, log-binned leakage spectrum |

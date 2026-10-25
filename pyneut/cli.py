@@ -56,9 +56,9 @@ def cmd_run(args):
     except InputError as e:
         _print_problems(f"{args.input}: {len(e.problems)} problem(s)", e.problems, sys.stderr)
         return 1
-    if model.run.engine == "vector" and any(t.mesh or t.type == "detector"
+    if model.run.engine == "vector" and any(t.type == "detector"
                                             for t in model.tallies.values()):
-        print("error: mesh and detector tallies need the scalar engine", file=sys.stderr)
+        print("error: detector tallies need the scalar engine", file=sys.stderr)
         return 1
     results = model.solve()
     print(results.summary())
