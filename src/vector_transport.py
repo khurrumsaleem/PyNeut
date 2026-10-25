@@ -19,6 +19,8 @@ and the k-eigenvalue driver), plus multiprocessing wrappers that run
 independent bank chunks (fixed source) or independent seeds (k-eigenvalue) one
 per core.
 """
+import logging
+
 import numpy as np
 
 from .angular_distribution import AngularDistribution
@@ -28,6 +30,8 @@ from .medium import Plane, Sphere, Cylinder
 from .simulation import THERMAL_KINEMATICS_CUTOFF
 
 EPSILON = 1e-6  # boundary-crossing nudge, matches the scalar kernel
+
+logger = logging.getLogger(__name__)
 
 
 def _interp_shared(E, grid, arrays):
@@ -1268,6 +1272,8 @@ def run_keff_vector(reader, mediums, initial_source, settings,
             active_col.append(k_col)
             active_src.append(k_src)
         if produced == 0:
+            logger.warning("Fission chain died out at generation %d; stopping "
+                           "early (system is deeply subcritical).", gen)
             break
         pick = rng.choice(produced, size=gen_size,
                           replace=bool(produced < gen_size))

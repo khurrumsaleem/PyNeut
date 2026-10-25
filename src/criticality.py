@@ -21,12 +21,16 @@ as `physics_counts["fission_production"]`), so k_collision = (total fission
 production) / (source neutrons started). Both estimators are unbiased and agree
 in the mean; the collision one is reported as the primary k_eff.
 """
+import logging
+
 import numpy as np
 
 from .random_number_generator import RNGHandler
 from .simulation import simulate_single_particle
 from .statistics import mean_sem
 from .physics import sample_watt_spectrum, watt_params_for
+
+logger = logging.getLogger(__name__)
 
 
 def uniform_sphere_source(center, radius, n, rng, element="U235", energy=None):
@@ -76,6 +80,10 @@ def run_keff(reader, mediums, initial_source, A, N, sampler, settings,
     "criticality" (analog transport) so fission neutrons are produced. Pass a
     `multiprocessing.Pool` to parallelise the per-generation transport.
 
+    Per-generation progress goes to the `src.criticality` logger: at INFO when
+    `verbose` is set, at DEBUG otherwise. Enable it with, for example,
+    `logging.basicConfig(level=logging.INFO)`.
+
     Returns a dict: k_eff/k_sem (collision estimator), k_source/k_source_sem
     (source estimator), active_k (per-active-generation collision k), and
     cycles (list of (generation, k_collision, k_source, is_active)).
@@ -118,13 +126,15 @@ def run_keff(reader, mediums, initial_source, A, N, sampler, settings,
             active_src.append(k_src)
             active_col.append(k_col)
 
-        if verbose:
-            tag = "active" if is_active else "settle"
-            print(f"  gen {gen:3d}  k_col={k_col:.5f}  k_src={k_src:.5f}  "
-                  f"src={started:5d}  fiss={produced:5d}  [{tag}]")
+        logger.log(logging.INFO if verbose else logging.DEBUG,
+                   "gen %3d  k_col=%.5f  k_src=%.5f  src=%5d  fiss=%5d  [%s]",
+                   gen, k_col, k_src, started, produced,
+                   "active" if is_active else "settle")
 
         if produced == 0:
-            break  # chain died out (deeply subcritical)
+            logger.warning("Fission chain died out at generation %d; stopping "
+                           "early (system is deeply subcritical).", gen)
+            break
 
         source = _resample(new_sites, gen_size, rng_state)
 

@@ -1,5 +1,9 @@
 # src/mesh.py
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 class MeshTally:
     def __init__(self, x_bounds, y_bounds, z_bounds, dims):
@@ -45,7 +49,7 @@ class MeshTally:
         Export the mesh data to a legacy VTK file (Structured Points).
         This file can be opened in ParaView.
         """
-        print(f"Exporting Mesh Tally to {filename}...")
+        logger.info("Writing mesh tally to %s", filename)
 
         with open(filename, 'w') as f:
             # VTK Header
@@ -73,4 +77,3 @@ class MeshTally:
             for val in flat_data:
                 f.write(f"{val:.4e}\n")
 
-        print("Export complete.")

@@ -19,7 +19,8 @@ class TestEnergyConversions:
         sampler = VelocitySampler(mass=mass, temperature=294)
 
         E_initial = 1e7  # 10 MeV
-        E_cm = calculate_E_cm_prime(E_initial, A=2.5, sampler=sampler)
+        E_cm = calculate_E_cm_prime(E_initial, A=2.5, sampler=sampler,
+                                    rng=RNGHandler(seed=7))
 
         # Physics check:
         # v_cm = v_lab / (A + 1)
@@ -37,7 +38,8 @@ class TestEnergyConversions:
         sampler = VelocitySampler(mass=mass, temperature=294)
 
         E_initial = 0.0253
-        E_cm = calculate_E_cm_prime(E_initial, A=2.5, sampler=sampler)
+        E_cm = calculate_E_cm_prime(E_initial, A=2.5, sampler=sampler,
+                                    rng=RNGHandler(seed=7))
 
         assert E_cm > 0
         # E_cm should be small, order of thermal energy
@@ -192,16 +194,39 @@ class TestVelocitySampler:
         mass = 208 * 1.674927471e-27
         sampler = VelocitySampler(mass=mass, temperature=294)
         vn = 2000
+        rng = RNGHandler(seed=11)
         for _ in range(50):
-            v_t = sampler.sample_velocity(vn)
+            v_t = sampler.sample_velocity(vn, rng)
             assert v_t >= 0
 
     def test_velocity_distribution_thermal_range(self):
         mass = 208 * 1.674927471e-27
         sampler = VelocitySampler(mass=mass, temperature=294)
         vn = 2000
-        velocities = [sampler.sample_velocity(vn) for _ in range(100)]
+        rng = RNGHandler(seed=12)
+        velocities = [sampler.sample_velocity(vn, rng) for _ in range(100)]
         assert np.mean(velocities) < 1000
+
+    def test_velocity_sampling_is_seed_reproducible(self):
+        # Issue #16: target-velocity draws must come from the history's own
+        # stream, so the same seed gives the same samples in any process.
+        mass = 208 * 1.674927471e-27
+        sampler = VelocitySampler(mass=mass, temperature=294)
+        a = [sampler.sample_velocity(2000, RNGHandler(seed=5), return_mu=True)
+             for _ in range(3)]
+        b = [sampler.sample_velocity(2000, RNGHandler(seed=5), return_mu=True)
+             for _ in range(3)]
+        assert a == b
+        np.random.seed(0)
+        c = sampler.sample_velocity(2000, RNGHandler(seed=5), return_mu=True)
+        np.random.seed(1)
+        d = sampler.sample_velocity(2000, RNGHandler(seed=5), return_mu=True)
+        assert c == d == a[0]
+
+    def test_velocity_sampling_requires_rng(self):
+        sampler = VelocitySampler(mass=208 * 1.674927471e-27, temperature=294)
+        with pytest.raises(TypeError):
+            sampler.sample_velocity(2000)
 
 
 class TestConservationLaws:

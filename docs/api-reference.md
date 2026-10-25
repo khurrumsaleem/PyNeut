@@ -258,7 +258,11 @@ ParaView opens directly.
 Fission-source power iteration on the scalar engine. `settings.mode` must be
 `"criticality"`. Each generation transports its source (in parallel when
 `pool` is given), then resamples the fission bank back to the starting size.
-k is averaged over the active generations.
+k is averaged over the active generations. Per-generation progress is logged
+to `src.criticality`, at INFO with `verbose=True` and at DEBUG otherwise. To
+see it, configure logging, for example with
+`logging.basicConfig(level=logging.INFO)`. If the fission chain dies out, a
+warning is logged and the iteration stops early.
 
 | Key | Meaning |
 |-----|---------|
@@ -322,8 +326,10 @@ Scalar kinematics, used by the per-history kernel and the tests.
 ### `VelocitySampler(mass, temperature=294)`
 
 The free-gas target sampler. `mass` is the mass of one target atom in kg
-(`Material.kg_mass`). `sample_velocity(vn, rng=None, max_attempts=1000, return_mu=False)`
-samples the target speed (m/s) for a neutron moving at speed `vn`. With
+(`Material.kg_mass`). `sample_velocity(vn, rng, max_attempts=1000, return_mu=False)`
+samples the target speed (m/s) for a neutron moving at speed `vn`. The `rng`
+argument, the history's `RNGHandler`, is required, so every draw comes from
+that history's reproducible stream. With
 `return_mu=True` it returns `(v_t, μ)`, the speed and its cosine to the
 neutron direction, which must be used together.
 
