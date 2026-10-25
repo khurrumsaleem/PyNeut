@@ -124,12 +124,26 @@ and Pb208 at 14 MeV). Three things are applied:
 
 The Maxwellian-evaporation fallback is used **0 %** of the time. (An earlier
 "18 % / χ² ≈ 86" emission bias was a diagnostic artifact: OpenMC's incident
-block *i* was compared against PyNeut's block *i+1*.) The working explanation
-is that PyNeut samples the emitted neutrons independently, with no constraint
-on their total energy. That would change the spectrum shape while keeping the
-neutron count, and so the integral leakage, correct. B10 at 1 keV is also
-POOR (15) without any (n,xn). B10 is a near-black absorber, so its leaked
-spectrum is sparse and noisy.
+block *i* was compared against PyNeut's block *i+1*.)
+
+**A likely tally artifact, pending a re-run.** The PyNeut spectra in this
+table were built by histogramming each *history's* weight-averaged escape
+energy. When (n,xn) makes one history leak several neutrons, say at 0.5 and
+3 MeV, all of that weight lands in one bin near 1.75 MeV, while OpenMC scores
+each neutron at its own energy. That averaging leaves the total leakage and
+the mean escape energy exactly right and narrows the spectrum, which is the
+observed pattern: integrals OK, shape POOR, only in the multiplying cases,
+with PyNeut low in the 4–6 MeV tail of the Pb208 panel below. The validation
+suite now scores leakage per neutron (`pyneut.tallies`), so the next
+`run_all.py` settles it.
+
+The earlier working explanation was that PyNeut samples the emitted neutrons
+independently, with no constraint on their total energy. As far as we know,
+OpenMC samples them independently too, so that would not explain a difference
+between the two codes.
+
+B10 at 1 keV is also POOR (15) without any (n,xn). B10 is a near-black
+absorber, so its leaked spectrum is sparse and noisy.
 
 Each case's spectrum can be inspected directly. `run_all.py --plots` writes
 one panel per case to `images/cases/`:
@@ -291,7 +305,7 @@ secondary energy is sampled: Law 61 correlated, Law 4, or the Maxwellian
 fallback. The suite reports the fallback rate per case, and it is 0 % in every
 case.
 
-**Unit tests:** `pytest` runs 228 tests. They cover geometry against
+**Unit tests:** `pytest` runs 246 tests. They cover geometry against
 analytic and trimesh ground truth, material and number-density arithmetic,
 the cross-section reader, scattering kinematics, inelastic physics, batch
 statistics, tally uncertainties, criticality, mixtures, the vector engine and
@@ -325,8 +339,9 @@ validation above puts a number on them.
 
 - **(n,xn) spectrum shape.** The integrals agree, but the leakage spectrum
   shape is POOR for the (n,2n) spheres (χ²/dof 29 and 46) and for Fe56 at
-  14 MeV (5.5).
-  See [above](#fixed-source-transport-vs-openmc).
+  14 MeV (5.5). This is probably the per-history binning of the old
+  spectrum tally, now replaced. See
+  [above](#fixed-source-transport-vs-openmc).
 - **Free-gas thermal scattering only (no S(α,β)).** The free-gas model is
   validated, but the binding of atoms in real moderators (water, graphite) is
   not modelled. Thermal results in bound media are therefore approximate, and

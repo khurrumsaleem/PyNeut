@@ -209,28 +209,64 @@ In eigenvalue mode, the source is the first-generation guess.
 
 ## `[tallies]`
 
-Each tally is named and has a `type`. Results are per source neutron, with
-batch-means standard errors.
+Each tally is named and has a `type`: what it scores. Optional **filters**
+split the score into bins:
+- `cells`: a list of cell names;
+- `energy_bins`;
+- `mesh`: a regular 3-D grid.
 
-| `type` | Options | Reports | Engines |
-|--------|---------|---------|---------|
-| `leakage` | `energy_bins` | leaked weight, mean escape energy, and with bins the leakage spectrum | both |
-| `absorption` | `mesh = {min, max, dims}` | absorbed weight, and with a mesh a 3-D absorption map | total: both. Mesh: scalar. |
-| `detector` | `box = {min, max}` | fraction of histories that reach the box | scalar |
-| `keff` | none | k_eff (collision estimator) and the generation estimator, with every generation | both (eigenvalue mode) |
+Filters combine, so a flux tally with `cells` and `energy_bins` gives a
+spectrum per cell. Results are per source neutron, with batch-means standard
+errors. In eigenvalue mode, they're per fission-source neutron, averaged over
+the active generations.
 
-`energy_bins` is a list of edges, `{ log = [min, max, n] }` or
-`{ lin = [min, max, n] }`, where `n` is the number of bins.
+| `type` | Scores | Filters | Engines |
+|--------|--------|---------|---------|
+| `flux` | neutron flux | `cells`, `energy_bins`, `mesh`, `estimator` | both |
+| `absorption` | weight removed by capture and fission | `cells`, `energy_bins`, `mesh` | both |
+| `leakage` | weight leaving the model, scored per neutron at the energy it leaves with | `energy_bins` | both |
+| `detector` | fraction of histories that reach a box | `box = {min, max}` | scalar, fixed source |
+| `keff` | k_eff (collision estimator) and the generation estimator, with every generation | none | both, eigenvalue mode |
 
-- A fixed-source model with no tallies gets a `leakage` tally, and an
-  eigenvalue model always gets a `keff` tally.
-- Eigenvalue mode supports only `keff` for now.
-- Detector boxes are only tested where a neutron stops, at collisions and
+```toml
+[tallies.flux]                       # a flux spectrum in two cells
+type        = "flux"
+cells       = ["fuel", "water"]
+energy_bins = ["1e-5 eV", "0.625 eV", "100 keV", "20 MeV"]
+
+[tallies.flux_map]                   # a 3-D flux map
+type = "flux"
+mesh = { min = [-10, -10, -10], max = [10, 10, 10], dims = [20, 20, 20] }
+```
+
+- **Flux** is reported as track length per source neutron (cm), meaning
+  integrated over each bin's volume, as OpenMC reports it. Divide by a
+  cell's volume to get its average flux.
+- **Flux estimators:**
+  - `track-length` (the default) adds up flight-path lengths. It works in
+    void cells and usually has the lower variance.
+  - `collision` adds weight / Σ_t at each collision. It is zero in voids.
+  - A `mesh` flux uses the collision estimator; track-length on a mesh isn't
+    available yet.
+- **Energies** are the neutron's energy before the event: before a
+  collision, or as it leaks.
+- **`energy_bins`** is a list of edges, `{ log = [min, max, n] }` or
+  `{ lin = [min, max, n] }`, where `n` is the number of bins. Events outside
+  the bins, the listed cells or the mesh are not counted in `mean`. The
+  tally's `total` always counts every event.
+- **Defaults:** a fixed-source model with no tallies gets a `leakage` tally,
+  and an eigenvalue model always gets a `keff` tally.
+- **Detector boxes** are only tested where a neutron stops, at collisions and
   surface crossings. Make the detector its own void cell, as in
   `examples/features/slab_detector.toml`, so neutrons can't fly through it
   unseen.
-- Cell- and energy-filtered absorption, flux, and mesh/detector tallies on the
-  vector engine come with the tally interface (issue #6).
+
+Each tally's result has a `total` and `total_sem`. Leakage also has
+`mean_energy` and `mean_energy_sem`, and flux has its `estimator`. A filtered
+tally also has:
+- `axes`, for example `["cell", "energy"]`;
+- `mean` and `sem` arrays with those axes;
+- `cells`, `energy_bins` and `mesh` as applicable.
 
 ## Results
 
@@ -245,7 +281,9 @@ batch-means standard errors.
     directory with its fingerprint (the same one the validation suite
     records) and the AWR read for each nuclide.
 - **`<tally>.vtk` and `<tally>.npz`** for each mesh tally. The VTK opens in
-  ParaView, and the NPZ holds the mean and standard error arrays.
+  ParaView and is summed over any cell and energy axes. The NPZ holds the full
+  `mean` and `sem` arrays and their `axes`. In `results.json`, mesh tallies
+  list these files instead of their arrays.
 
 ## Command line
 

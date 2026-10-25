@@ -10,7 +10,7 @@ The public interface of the `pyneut` package, which you import as
 throughout. The [Quick Start](QUICK_START.md) shows these pieces working
 together.
 
-**Modules:** [model](#model) · [material](#material) · [medium](#medium) ·
+**Modules:** [model](#model) · [tallies](#tallies) · [material](#material) · [medium](#medium) ·
 [cross_section_read](#cross_section_read) · [settings](#settings) ·
 [simulation](#simulation) · [tally](#tally) · [statistics](#statistics) ·
 [mesh](#mesh) · [criticality](#criticality) ·
@@ -47,10 +47,9 @@ These parse and validate a model. Every problem is collected into one
 
 | Tally type | Keys |
 |------------|------|
-| `leakage` | `total`, `total_sem`, `mean_energy`, `mean_energy_sem`, and with bins also `energy_bins`, `spectrum`, `spectrum_sem` |
-| `absorption` | `total`, `total_sem`, and with a mesh also `mesh` (`mean` and `sem` arrays) |
+| `leakage`, `absorption`, `flux` | `total`, `total_sem`. Leakage adds `mean_energy` and `mean_energy_sem`; flux adds `estimator`. A filtered tally adds `axes` (e.g. `["cell", "energy"]`), `mean` and `sem` arrays with those axes, and `cells`, `energy_bins`, `mesh` as applicable. |
 | `detector` | `fraction`, `fraction_sem` |
-| `keff` | `k_eff`, `k_eff_sem`, `k_source`, `k_source_sem`, `cycles` |
+| `keff` | `k_eff`, `k_eff_sem`, `k_source`, `k_source_sem`, `active_generations`, `cycles` |
 
 Other members:
 - `info`: run information (engine, wall time, histories/s, counters)
@@ -74,6 +73,42 @@ Other members:
   - `read_awr(data_dir, nuclide)`
   - `data_manifest(data_dir)`: the data fingerprint stored in results
   - `resolve_data_dir(explicit, base_dir)`
+
+---
+
+## tallies
+
+Event-based tallies shared by both engines. Every engine entry point takes
+an optional `scorer`, and passing one never changes a transport result,
+because the scorer draws no random numbers.
+
+### `TallyDef(name, score, cell_map=None, cell_names=None, mesh=None, energy_bins=None, estimator=None)`
+
+| Argument | Meaning |
+|----------|---------|
+| `score` | `"flux"`, `"absorption"` or `"leakage"` |
+| `cell_map` | array over medium index → output bin (-1 = not tallied) |
+| `mesh` | `{"min": [..], "max": [..], "dims": [nx, ny, nz]}` |
+| `energy_bins` | increasing edges in eV |
+| `estimator` | flux only: `"track-length"` (default) or `"collision"` (required with a mesh) |
+
+### `Scorer(defs, n_batches)`
+
+| Member | Meaning |
+|--------|---------|
+| `collision`, `track`, `absorb`, `leak` | the hooks the engines call (arrays or scalars) |
+| `batch` | scalar engine: the batch of the history being run |
+| `set_batches(hist_batch)` | vector engine: `hist_batch[h]` is the batch of source history `h` |
+| `active` | False skips scoring (inactive generations) |
+| `state()`, `merge(state)` | move accumulators between processes |
+| `finalize(per_batch_sources)` | per-source-neutron results, the same dicts as in `Results` |
+
+Where the scorer plugs in:
+- `simulate_single_particle(args)` accepts a scorer as an 11th tuple element;
+- `run_particle_kernel`, `vector_transport.run_transport`,
+  `run_transport_parallel`, `run_keff` and `run_keff_vector` take `scorer=`.
+
+For an eigenvalue run, make one batch per active generation.
 
 ---
 
@@ -310,7 +345,7 @@ ParaView opens directly.
 
 ## criticality
 
-### `run_keff(reader, mediums, initial_source, A, N, sampler, settings, generations=50, inactive=10, seed=1, pool=None, verbose=False)` → `dict`
+### `run_keff(reader, mediums, initial_source, A, N, sampler, settings, generations=50, inactive=10, seed=1, pool=None, verbose=False, scorer=None)` → `dict`
 
 Fission-source power iteration on the scalar engine. `settings.mode` must be
 `"criticality"`. Each generation transports its source (in parallel when
@@ -347,9 +382,9 @@ pass `legacy=(A, N, sampler)` to back `element=` regions.
 
 | Function | Returns |
 |----------|---------|
-| `run_transport(reader, mediums, source, rng, settings, legacy=None, fission_bank=None, max_events=1_000_000)` | `{'leaked_weight', 'escape_energy'}` (per-history arrays for `escape_statistics`), plus `'leakage'`, `'absorbed_weight'`, `'counters'` and `'events'`. In analog mode with a `fission_bank` list, fission neutrons are banked as array tuples. |
-| `run_transport_parallel(base_path, mediums, source, settings, n_workers=None, seed=0, temperature="294K", legacy=None)` | the same dict. The bank is split into one contiguous chunk per worker, and each worker builds its own reader from `base_path`. |
-| `run_keff_vector(reader, mediums, initial_source, settings, generations=50, inactive=10, seed=1)` | the same dict as `criticality.run_keff` |
+| `run_transport(reader, mediums, source, rng, settings, legacy=None, fission_bank=None, max_events=1_000_000, scorer=None)` | `{'leaked_weight', 'escape_energy'}` (per-history arrays for `escape_statistics`), plus `'leakage'`, `'absorbed_weight'`, `'counters'` and `'events'`. In analog mode with a `fission_bank` list, fission neutrons are banked as array tuples. |
+| `run_transport_parallel(base_path, mediums, source, settings, n_workers=None, seed=0, temperature="294K", legacy=None, scorer=None)` | the same dict. The bank is split into one contiguous chunk per worker, and each worker builds its own reader from `base_path`. A `scorer` must have `hist_batch` set for all histories; each worker's scores are merged back into it. |
+| `run_keff_vector(reader, mediums, initial_source, settings, generations=50, inactive=10, seed=1, scorer=None)` | the same dict as `criticality.run_keff` |
 | `run_keff_parallel(base_path, mediums, sources, settings, seeds, generations=50, inactive=10, temperature="294K", n_workers=None)` | `{'k_mean', 'k_spread_sem', 'per_seed_k', 'per_seed'}`: independent replicas, with the error bar taken from their spread |
 | `run_streaming(reader, mediums, source, rng, legacy=None)` | uncollided transmission: any collision ends the history (a Beer–Lambert check) |
 

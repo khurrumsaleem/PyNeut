@@ -81,7 +81,11 @@ about 100× heavier there than on the fast-metal spheres.
    the binning bias cancels.
 2. **Spectrum shape.** The whole leakage spectrum is compared with a
    coarse-group χ²/dof (`compare_spectra`): GOOD ≤ 2, FAIR ≤ 5, POOR > 5.
-   This is reported separately from the integral status.
+   This is reported separately from the integral status. PyNeut's spectrum
+   is scored per leaking neutron (`pyneut.tallies`), as OpenMC's is.
+   Results committed before that change binned each history's average
+   escape energy instead, which distorts the shape whenever (n,xn) makes one
+   history leak several neutrons.
 3. **Fallback diagnostics.** The kernel counts which ENDF law sampled each
    (n,xn) secondary energy. The "Max%" column is the share that fell back to
    Maxwellian evaporation.
