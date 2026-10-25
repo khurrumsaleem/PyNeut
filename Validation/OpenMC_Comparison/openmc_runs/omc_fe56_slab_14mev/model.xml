@@ -2,24 +2,24 @@
 <model>
   <materials>
     <material id="4">
-      <density units="g/cm3" value="7.87"/>
-      <nuclide ao="1.0" name="Fe56"/>
+      <density value="7.87" units="g/cm3"/>
+      <nuclide name="Fe56" ao="1.0"/>
     </material>
   </materials>
   <geometry>
     <cell id="4" material="4" region="4 -5 6 -7 8 -9" universe="4"/>
-    <surface boundary="vacuum" coeffs="-2.0" id="4" type="x-plane"/>
-    <surface boundary="vacuum" coeffs="2.0" id="5" type="x-plane"/>
-    <surface boundary="vacuum" coeffs="-50" id="6" type="y-plane"/>
-    <surface boundary="vacuum" coeffs="50" id="7" type="y-plane"/>
-    <surface boundary="vacuum" coeffs="-50" id="8" type="z-plane"/>
-    <surface boundary="vacuum" coeffs="50" id="9" type="z-plane"/>
+    <surface id="4" type="x-plane" boundary="vacuum" coeffs="-2.0"/>
+    <surface id="5" type="x-plane" boundary="vacuum" coeffs="2.0"/>
+    <surface id="6" type="y-plane" boundary="vacuum" coeffs="-50"/>
+    <surface id="7" type="y-plane" boundary="vacuum" coeffs="50"/>
+    <surface id="8" type="z-plane" boundary="vacuum" coeffs="-50"/>
+    <surface id="9" type="z-plane" boundary="vacuum" coeffs="50"/>
   </geometry>
   <settings>
     <run_mode>fixed source</run_mode>
     <particles>500</particles>
     <batches>20</batches>
-    <source particle="neutron" strength="1.0" type="independent">
+    <source type="independent" strength="1.0" particle="neutron">
       <space type="point">
         <parameters>0 0 0</parameters>
       </space>

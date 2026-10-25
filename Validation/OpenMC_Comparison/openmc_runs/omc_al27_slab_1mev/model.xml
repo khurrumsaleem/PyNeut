@@ -2,24 +2,24 @@
 <model>
   <materials>
     <material id="8">
-      <density units="g/cm3" value="2.7"/>
-      <nuclide ao="1.0" name="Al27"/>
+      <density value="2.7" units="g/cm3"/>
+      <nuclide name="Al27" ao="1.0"/>
     </material>
   </materials>
   <geometry>
     <cell id="8" material="8" region="13 -14 15 -16 17 -18" universe="8"/>
-    <surface boundary="vacuum" coeffs="-0.5" id="13" type="x-plane"/>
-    <surface boundary="vacuum" coeffs="0.5" id="14" type="x-plane"/>
-    <surface boundary="vacuum" coeffs="-50" id="15" type="y-plane"/>
-    <surface boundary="vacuum" coeffs="50" id="16" type="y-plane"/>
-    <surface boundary="vacuum" coeffs="-50" id="17" type="z-plane"/>
-    <surface boundary="vacuum" coeffs="50" id="18" type="z-plane"/>
+    <surface id="13" type="x-plane" boundary="vacuum" coeffs="-0.5"/>
+    <surface id="14" type="x-plane" boundary="vacuum" coeffs="0.5"/>
+    <surface id="15" type="y-plane" boundary="vacuum" coeffs="-50"/>
+    <surface id="16" type="y-plane" boundary="vacuum" coeffs="50"/>
+    <surface id="17" type="z-plane" boundary="vacuum" coeffs="-50"/>
+    <surface id="18" type="z-plane" boundary="vacuum" coeffs="50"/>
   </geometry>
   <settings>
     <run_mode>fixed source</run_mode>
     <particles>500</particles>
     <batches>20</batches>
-    <source particle="neutron" strength="1.0" type="independent">
+    <source type="independent" strength="1.0" particle="neutron">
       <space type="point">
         <parameters>0 0 0</parameters>
       </space>

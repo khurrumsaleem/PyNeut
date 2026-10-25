@@ -1,8 +1,8 @@
 {
- "n_files": 48,
- "total_bytes": 648988072,
- "sha256": "99a54c1923e4de46",
- "measured": "2026-08-08",
+ "n_files": 50,
+ "total_bytes": 821046552,
+ "sha256": "410b18d0cbbd0590",
+ "measured": "2026-10-25",
  "n_particles": 10000,
  "applies_to": "validation_results.csv"
 }
