@@ -192,7 +192,7 @@ pyneut/                    the package
   cli.py                     the `pyneut` command (check, run)
   settings.py, tally.py, statistics.py, mesh.py, random_number_generator.py
 examples/                  input files for every validated case and every feature
-tests/                     pytest suite (42 tests need ENDF data and skip without it)
+tests/                     pytest suite (47 tests need ENDF data and skip without it)
 Validation/
   analytic_benchmarks.py     exact analytic checks, no OpenMC needed
   OpenMC_Comparison/         live PyNeut-vs-OpenMC suite, see its README

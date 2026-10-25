@@ -38,7 +38,7 @@ From the repository root:
 pytest -q
 ```
 
-Without nuclear data, the 42 tests that read ENDF files skip and the rest run.
+Without nuclear data, the 47 tests that read ENDF files skip and the rest run.
 This is also what CI does. If you have the data, please run the full suite
 before opening a pull request, since the skipped tests cover the transport
 end to end. If you add

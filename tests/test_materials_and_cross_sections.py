@@ -101,6 +101,7 @@ class TestCrossSectionReader:
         assert xs > 0
         assert 0.1 < xs < 20  # Typical range for lead
 
+    @needs_data
     def test_get_cross_section_capture(self, reader):
         """Test retrieving radiative capture XS (MT=102)"""
         xs = reader.get_cross_section(
@@ -111,6 +112,7 @@ class TestCrossSectionReader:
 
         assert xs >= 0  # Can be zero at high energies
 
+    @needs_data
     def test_cross_section_below_threshold(self, reader):
         """Test XS below reaction threshold returns zero"""
         xs = reader.get_cross_section(
@@ -147,6 +149,7 @@ class TestCrossSectionReader:
         assert reader.calculate_macroscopic_xs(-5.0, 1e22) == 0.0
         assert reader.calculate_macroscopic_xs(0.0, 1e22) == 0.0
 
+    @needs_data
     def test_get_cross_sections_wrapper(self, reader):
         """Test the convenience wrapper that returns all macroscopic XS.
 
@@ -182,6 +185,7 @@ class TestCrossSectionReader:
         with pytest.raises(FileNotFoundError, match="Pb-208"):
             reader.get_cross_sections("Pb-208", 1e6, None, 3.3e22, 206.19)
 
+    @needs_data
     def test_invalid_mt_number(self, reader):
         """An MT number with no reaction in the data file returns 0.0 rather
         than raising — absent channels simply contribute nothing."""
@@ -275,6 +279,7 @@ class TestIntegrationMaterialsAndCrossSections:
 class TestValidationBenchmarks:
     """Validation against known physics benchmarks"""
 
+    @needs_data
     @pytest.mark.slow
     def test_1_over_v_law_thermal(self):
         """Test that capture follows 1/v law at thermal energies"""
