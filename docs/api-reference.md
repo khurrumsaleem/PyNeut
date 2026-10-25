@@ -212,9 +212,10 @@ This reads OpenMC-format HDF5 files from `<base_path>/neutron/<element>.h5`
 and caches every table it loads. If the data has no `"294K"` block, it falls
 back to `"293.6K"`.
 
-> **Missing data is not an error.** An unknown element or MT, a missing file,
-> or an energy below threshold all return 0. A misspelt nuclide therefore acts
-> like vacuum. The aliases `C`/`Graphite` → C0, `Be` → Be9, `Al` → Al27,
+> **A missing file is an error.** A nuclide with no data file raises
+> `FileNotFoundError` (from `nuclide_path`) at its first lookup, so a misspelt
+> name cannot act like vacuum. An MT the file does not contain, or an energy
+> below a reaction's threshold, still returns 0. The aliases `C`/`Graphite` → C0, `Be` → Be9, `Al` → Al27,
 > `Fe` → Fe56 and `Pb` → Pb208 each pick a single file. They don't expand an
 > element into its natural isotopes. They live in one place,
 > `cross_section_read.ELEMENT_ALIASES`, and `data_name(element)` resolves one.

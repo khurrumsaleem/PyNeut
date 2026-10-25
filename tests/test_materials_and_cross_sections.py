@@ -154,7 +154,7 @@ class TestCrossSectionReader:
             get_cross_sections(element, energy, sampler, N, A)
             -> (Sigma_el, Sigma_in, Sigma_cap, Sigma_fis, Sigma_total)
         """
-        A = 207.2
+        A = 206.19   # Pb208 atomic-weight ratio
         mass = 208 * 1.674927471e-27
         sampler = VelocitySampler(mass=mass, temperature=294)
         N = 3.3e22
@@ -175,9 +175,12 @@ class TestCrossSectionReader:
         assert Sigma_f == 0
 
     def test_invalid_element(self, reader):
-        """A missing data file yields 0.0 (graceful), not an exception."""
-        xs = reader.get_cross_section(element="Xx999", mt=2, energy=1e6)
-        assert xs == 0.0
+        """A missing data file is an error, so a misspelt nuclide cannot act
+        like vacuum."""
+        with pytest.raises(FileNotFoundError, match="Xx999"):
+            reader.get_cross_section(element="Xx999", mt=2, energy=1e6)
+        with pytest.raises(FileNotFoundError, match="Pb-208"):
+            reader.get_cross_sections("Pb-208", 1e6, None, 3.3e22, 206.19)
 
     def test_invalid_mt_number(self, reader):
         """An MT number with no reaction in the data file returns 0.0 rather
@@ -230,7 +233,7 @@ class TestIntegrationMaterialsAndCrossSections:
         """Test mean free path calculation: λ = 1/Σ"""
         reader = CrossSectionReader("./endfb")
         lead = Material("Lead", density=11.35, atomic_mass=208,
-                        atomic_weight_ratio=207.2)
+                        atomic_weight_ratio=206.19)
 
         mass = 208 * 1.674927471e-27
         sampler = VelocitySampler(mass=mass)
@@ -250,7 +253,7 @@ class TestIntegrationMaterialsAndCrossSections:
         """Test that scattering probability is computed correctly"""
         reader = CrossSectionReader("./endfb")
         lead = Material("Lead", density=11.35, atomic_mass=208,
-                        atomic_weight_ratio=207.2)
+                        atomic_weight_ratio=206.19)
         mass = 208 * 1.674927471e-27
         sampler = VelocitySampler(mass=mass)
 

@@ -465,8 +465,6 @@ validation above puts a number on them.
   element aliases exist (`Fe` → Fe56, `Pb` → Pb208, `Be` → Be9, `Al` → Al27,
   `C`/`Graphite` → C0). They map an element to a single file and do **not**
   expand it into its natural isotopes.
-- **Missing data is silent.** A nuclide name with no matching HDF5 file gets
-  zero cross sections, so a misspelt region behaves like vacuum.
 
 ---
 

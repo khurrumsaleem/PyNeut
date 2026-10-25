@@ -92,7 +92,7 @@ def test_no_fission_neutrons_for_nonfissile():
     rngs = [RNGHandler(i) for i in range(100)]
     states = [{"x": 0.0, "y": 0.0, "z": 1e-9, "theta": np.pi / 2, "phi": 0.0,
                "energy": 2.0e6, "weight": 1.0, "has_interacted": False} for _ in rngs]
-    args = [(s, reader, mediums, 207.2, N, sampler, None, False, r, settings)
+    args = [(s, reader, mediums, 206.19, N, sampler, None, False, r, settings)
             for s, r in zip(states, rngs)]
     results = [simulate_single_particle(a) for a in args]
     assert sum(len(r["fission_sites"]) for r in results) == 0

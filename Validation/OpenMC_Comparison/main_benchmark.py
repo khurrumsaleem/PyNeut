@@ -6,6 +6,7 @@ from pyneut.medium import Region, Sphere
 from pyneut.tally import Tally
 from pyneut.random_number_generator import RNGHandler
 from pyneut.settings import Settings
+from pyneut.data import read_awr
 from multiprocessing import Pool
 import time
 import numpy as np
@@ -18,7 +19,8 @@ def benchmark():
     # 2. MATERIAL: Pure Pb-208
     # Note: Use specific mass for Pb208 to match OpenMC
     pb_mass_kg = 207.9766521 * 1.660539e-27
-    lead = Material(name="Lead", density=11.35, atomic_mass=207.97, atomic_weight_ratio=207.2)
+    lead = Material(name="Lead", density=11.35, atomic_mass=207.97,
+                    atomic_weight_ratio=read_awr(base_path, "Pb208"))
 
     N = lead.number_density
     A = lead.atomic_weight_ratio

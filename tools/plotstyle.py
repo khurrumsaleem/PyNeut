@@ -118,8 +118,8 @@ def use_style():
 # --------------------------------------------------------------------------
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-# Tracked, unlike paper_template/, so figures referenced from the README are
-# actually present for anyone who clones the repository.
+# Tracked, so figures referenced from the README are actually present for
+# anyone who clones the repository.
 IMAGES = os.path.join(ROOT, "docs", "images")
 
 

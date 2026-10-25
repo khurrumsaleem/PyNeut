@@ -104,9 +104,8 @@ and put the `*.h5` files in `endfb/neutron/` (for example
 Cd112, Fe56, O16 and Pb208. The k-eigenvalue cases add U233/U234/U235/U238,
 Pu239/Pu240/Pu241 and Ga, and the pin cell needs its 36 nuclides.
 
-> Input files treat a missing nuclide file as an error. The low-level Python
-> API does not yet: there, a nuclide name with no matching file gets a zero
-> cross section, so check that the spelling matches the file name.
+> A nuclide name with no matching file is an error, both in input files and
+> in the Python API, so a misspelt name cannot silently act as vacuum.
 
 ## Quick start
 
@@ -233,8 +232,6 @@ The full list, with how each item shows up in the validation, is in
    detector tallies on the vector engine.
 5. **Physics.** S(α,β), multi-temperature data and a natural-abundance
    database.
-6. **Code hygiene.** Make the low-level cross-section reader raise an error
-   for a missing data file, as input files already do.
 
 ## Documentation
 

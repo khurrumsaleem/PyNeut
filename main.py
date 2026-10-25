@@ -8,6 +8,7 @@ from pyneut.tally import Tally
 from pyneut.random_number_generator import RNGHandler
 from pyneut.settings import Settings
 from pyneut.mesh import MeshTally
+from pyneut.data import read_awr
 
 from multiprocessing import Pool
 import json
@@ -43,8 +44,9 @@ def main():
     print("Pre-loading complete.")
     # ------------------------------------
 
-    #lead = Material(name="Lead", density=11.35, atomic_mass=208, atomic_weight_ratio=2.5)
-    boron = Material(name="Boron", density=2.34, atomic_mass=10, atomic_weight_ratio=10.0)
+    # The atomic-weight ratio comes from the data file, as input files do.
+    boron = Material(name="Boron", density=2.34, atomic_mass=10.0129,
+                     atomic_weight_ratio=read_awr(base_path, "B10"))
 
     # Correct: Use raw number density (atoms/cm^3)
     N = boron.number_density
@@ -95,11 +97,14 @@ def main():
     rngs = [RNGHandler(seed=12345 + i) for i in range(num_particles)]
     tally = Tally()
 
+    # A 50 eV beam along +x, starting just outside the cylinder
+    # (theta = pi/2, phi = 0 is the +x direction). The same model as an input
+    # file is examples/features/mesh_b10_cylinder.toml.
     particle_states = [
         {
             "x": -10.5, "y": 0.0, "z": 0.0,
-            "theta": rng.uniform(0, np.pi),
-            "phi": rng.uniform(0, 2 * np.pi),
+            "theta": np.pi / 2,
+            "phi": 0.0,
             "has_interacted": False,
             "energy": 50,  # 50 eV
             "weight": 1.0

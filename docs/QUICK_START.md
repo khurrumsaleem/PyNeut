@@ -466,9 +466,9 @@ between replicas is the honest error bar.
 
 ## Pitfalls
 
-- **Misspelt nuclide names fail silently.** A name with no
-  `endfb/neutron/<name>.h5` file gets zero cross sections, and the region acts
-  as vacuum. If a result looks too transparent, check the name first.
+- **Misspelt nuclide names.** A name with no `endfb/neutron/<name>.h5` file
+  raises `FileNotFoundError` at its first cross-section lookup. Nuclide names
+  are written like the files: `Pb208`, not `Pb-208`.
 - **The source sits outside every region.** That neutron is scored as escaped
   immediately. Wrap the problem in a void region that contains the source and
   any gaps (example 1).

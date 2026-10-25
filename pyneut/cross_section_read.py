@@ -339,14 +339,24 @@ class CrossSectionReader:
         # from the OpenMC-format HDF5 `urr` group. None for nuclides without one.
         self._urr_cache = {}
 
+    def nuclide_path(self, element):
+        """Path of `element`'s data file; FileNotFoundError if there is none.
+
+        A missing file is an error rather than a zero cross section, so a
+        misspelt nuclide cannot silently act as vacuum. A reaction the file
+        does not contain (an unknown MT) still reads as zero.
+        """
+        path = os.path.join(self.base_path, "neutron", f"{data_name(element)}.h5")
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"no nuclear data for {element!r}: expected {path}. The file "
+                "name must match the nuclide name, e.g. Pb208.h5")
+        return path
+
     def _load_data_to_cache(self, element: str, mt: int):
         actual_element = data_name(element)
         mt_str = f"{mt:03}"
-        file_path = os.path.join(self.base_path, f"neutron/{actual_element}.h5")
-
-        if not os.path.exists(file_path):
-            self._cache[(element, mt)] = None
-            return
+        file_path = self.nuclide_path(element)
 
         try:
             with h5py.File(file_path, 'r') as f:
@@ -425,7 +435,7 @@ class CrossSectionReader:
         if element in self._available_inelastic_mts:
             return
         actual = data_name(element)
-        file_path = os.path.join(self.base_path, f"neutron/{actual}.h5")
+        file_path = self.nuclide_path(element)
         emitting, absorbing, yields = [], [], {}
         try:
             with h5py.File(file_path, 'r') as f:
