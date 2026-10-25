@@ -135,7 +135,7 @@ def watt_params_for(element):
     return WATT_PARAMS.get(element, DEFAULT_WATT)
 
 
-def calculate_E_cm_prime(initial_energy, A, sampler, rng=None):
+def calculate_E_cm_prime(initial_energy, A, sampler, rng):
     if initial_energy > 10:
         ratio = A / (A + 1)
         return initial_energy * (ratio ** 2)

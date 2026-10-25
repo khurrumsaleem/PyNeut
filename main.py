@@ -11,11 +11,15 @@ from src.mesh import MeshTally
 
 from multiprocessing import Pool
 import json
+import logging
 import time
 import numpy as np
 from collections import deque
 
 def main():
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(name)s %(levelname)s: %(message)s")
+
     # 1. SETUP
     base_path = "./endfb"
     reader = CrossSectionReader(base_path)

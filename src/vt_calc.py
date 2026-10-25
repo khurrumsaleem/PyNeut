@@ -34,16 +34,16 @@ class VelocitySampler:
     # The old rejection proposal was uniform on [0,10] with ~10% acceptance, so
     # this removes the dominant per-collision cost in thermal problems.
 
-    def sample_velocity(self, vn, rng=None, max_attempts=1000, return_mu=False):
+    def sample_velocity(self, vn, rng, max_attempts=1000, return_mu=False):
         """Free-gas (SVT) target velocity by acceptance-rejection on the relative speed.
 
         With return_mu, returns (v_t, mu); the speed and its cosine must be used
         together or the speed-angle correlation (detailed balance) is lost.
 
-        `rng` is the per-history `RNGHandler`; when supplied the target-velocity
-        draws come from that reproducible stream rather than the global NumPy RNG,
-        so thermal (sub-cutoff) histories are as seed-reproducible as the rest of
-        the transport. It falls back to the global RNG only when no stream is given.
+        `rng` is the per-history `RNGHandler`. It is required: every draw comes
+        from that reproducible stream, never the global NumPy RNG, so thermal
+        (sub-cutoff) histories are as seed-reproducible as the rest of the
+        transport regardless of how a Pool schedules them.
         """
         beta = self.beta
         # Branch probability of the SVT method, in the DIMENSIONLESS neutron
@@ -52,7 +52,7 @@ class VelocitySampler:
         # p_first ~ 0, which under-sampled the x^3 e^{-x^2} target-speed shape
         # and biased the free-gas thermal spectrum; see cross_section_read.)
         p_first = 2.0 / (_SQRT_PI * vn * beta + 2.0)
-        draw = rng.random_array if rng is not None else np.random.random
+        draw = rng.random_array
         for _attempt in range(max_attempts):
             # one batched draw per attempt: r0 branch, r1-r3 speed shape,
             # r4 cosine, r5 acceptance. 1.0 - r keeps log arguments positive.
