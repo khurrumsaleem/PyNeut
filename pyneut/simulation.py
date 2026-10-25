@@ -19,8 +19,14 @@ import numpy as np
 THERMAL_KINEMATICS_CUTOFF = 10.0  # eV
 
 def simulate_single_particle(args):
-    """Track a source neutron and its banked descendants to termination."""
-    initial_state, reader, mediums, A, N, sampler, region_bounds, track_coordinates, rng, settings = args
+    """Track a source neutron and its banked descendants to termination.
+
+    `args` is the 10-tuple (state, reader, mediums, A, N, sampler,
+    region_bounds, track_coordinates, rng, settings), optionally followed by a
+    `tallies.Scorer` as an 11th element.
+    """
+    initial_state, reader, mediums, A, N, sampler, region_bounds, track_coordinates, rng, settings = args[:10]
+    scorer = args[10] if len(args) > 10 else None
 
     bank = [initial_state.copy()]
 
@@ -41,7 +47,7 @@ def simulate_single_particle(args):
 
         status, child_particles, trajectory_segment, abs_weight, abs_coords = run_particle_kernel(
             current_state, reader, mediums, A, N, sampler, region_bounds, track_coordinates, rng, settings,
-            counters, fission_bank
+            counters, fission_bank, scorer
         )
 
         if is_source:
@@ -194,7 +200,14 @@ def _advance_across_boundary(state, nearest_point, nearest_surface, u, v, w, eps
 
 
 def run_particle_kernel(state, reader, mediums, A, N, sampler, region_bounds, track_coordinates, rng, settings,
-                        counters=None, fission_bank=None):
+                        counters=None, fission_bank=None, scorer=None):
+    """Transport one neutron until it leaks, is absorbed or is killed.
+
+    `scorer`, if given, is a tallies.Scorer told of every flight segment,
+    collision, absorption and leak (it draws no random numbers, so results
+    are unchanged). Returns (status, children, trajectory, absorbed_weight,
+    absorbed_coords).
+    """
     epsilon = 1e-6
     trajectory = [] if track_coordinates else None
     absorbed_weight_local = 0.0
@@ -225,27 +238,34 @@ def run_particle_kernel(state, reader, mediums, A, N, sampler, region_bounds, tr
 
         # highest-priority medium containing the current point
         current_medium = None
+        cell = -1
         max_priority = -float('inf')
         point_check = (state["x"], state["y"], state["z"])
-        for medium in mediums:
+        for m_index, medium in enumerate(mediums):
             if medium.contains(*point_check) and medium.priority > max_priority:
                 current_medium = medium
+                cell = m_index
                 max_priority = medium.priority
 
         if current_medium is None:
+            if scorer is not None:
+                scorer.leak(None, state["x"], state["y"], state["z"], state["energy"], state["weight"])
             return "escaped", children, trajectory, absorbed_weight_local, absorbed_coords_local
 
         nearest_point, _, nearest_distance, nearest_surface = calculate_nearest_crossing(
             state, mediums, u, v, w)
 
         if nearest_point is None:
-             return "escaped", children, trajectory, absorbed_weight_local, absorbed_coords_local
+            if scorer is not None:
+                scorer.leak(None, state["x"], state["y"], state["z"], state["energy"], state["weight"])
+            return "escaped", children, trajectory, absorbed_weight_local, absorbed_coords_local
 
         # stream through voids to the next surface
         if current_medium.is_void:
-            if nearest_point is not None:
-                u, v, w = _advance_across_boundary(
-                    state, nearest_point, nearest_surface, u, v, w, epsilon)
+            if scorer is not None:
+                scorer.track(None, cell, nearest_distance, state["energy"], state["weight"])
+            u, v, w = _advance_across_boundary(
+                state, nearest_point, nearest_surface, u, v, w, epsilon)
             continue
 
         # per-isotope macroscopic cross sections for this medium; an explicit
@@ -278,10 +298,14 @@ def run_particle_kernel(state, reader, mediums, A, N, sampler, region_bounds, tr
             si = float(-np.log(1 - rng.random()) / Sigma_t)
 
         if si > nearest_distance:
+            if scorer is not None:
+                scorer.track(None, cell, nearest_distance, state["energy"], state["weight"])
             u, v, w = _advance_across_boundary(
                 state, nearest_point, nearest_surface, u, v, w, epsilon)
             continue
 
+        if scorer is not None:
+            scorer.track(None, cell, si, state["energy"], state["weight"])
         state["x"] += si * u
         state["y"] += si * v
         state["z"] += si * w
@@ -290,6 +314,9 @@ def run_particle_kernel(state, reader, mediums, A, N, sampler, region_bounds, tr
             continue
 
         state["has_interacted"] = True
+        if scorer is not None:
+            scorer.collision(None, cell, state["x"], state["y"], state["z"],
+                             state["energy"], state["weight"], Sigma_t)
 
         # collision estimator of fission production (k-eff): every collision
         # contributes w·Σᵢ νᵢ·Σ_f,ᵢ / Σ_t, lower variance than counting actual
@@ -321,6 +348,9 @@ def run_particle_kernel(state, reader, mediums, A, N, sampler, region_bounds, tr
             absorbed_weight_local += w_loss
             if w_loss > 0:
                 absorbed_coords_local.append((state["x"], state["y"], state["z"], w_loss))
+                if scorer is not None:
+                    scorer.absorb(None, cell, state["x"], state["y"], state["z"],
+                                  state["energy"], w_loss)
 
             state["weight"] *= p_scatter
             if state["weight"] <= 0:
@@ -352,6 +382,9 @@ def run_particle_kernel(state, reader, mediums, A, N, sampler, region_bounds, tr
                 # absorption. With a fission bank (criticality / k-eff driver),
                 # split fission off capture and emit ν prompt neutrons into the
                 # NEXT generation's source; otherwise fission is pure absorption.
+                if scorer is not None:
+                    scorer.absorb(None, cell, state["x"], state["y"], state["z"],
+                                  state["energy"], state["weight"])
                 if (fission_bank is not None and s_fis_i > 0.0
                         and rng.random() < s_fis_i / (s_cap_i + s_fis_i)):
                     nu_bar = reader.get_nu(iso.element, state["energy"])

@@ -151,10 +151,24 @@ def test_missing_data_is_an_error(tmp_path):
         model.build()
 
 
-def test_vector_engine_rejects_mesh_tallies(tmp_path):
+def test_vector_engine_rejects_detector_tallies(tmp_path):
     text = PB_SPHERE.format(engine="vector") + \
-        '\n[tallies.map]\ntype = "absorption"\nmesh = { min = [-1,-1,-1], max = [1,1,1], dims = [2,2,2] }\n'
+        '\n[tallies.d]\ntype = "detector"\nbox = { min = [-1,-1,-1], max = [1,1,1] }\n'
     with pytest.raises(InputError, match="need run.engine = \"scalar\""):
+        Model.from_toml(write(tmp_path, text))
+
+
+def test_track_length_mesh_flux_is_rejected(tmp_path):
+    text = PB_SPHERE.format(engine="vector") + \
+        '\n[tallies.f]\ntype = "flux"\nestimator = "track-length"\n' \
+        'mesh = { min = [-1,-1,-1], max = [1,1,1], dims = [2,2,2] }\n'
+    with pytest.raises(InputError, match="collision estimator"):
+        Model.from_toml(write(tmp_path, text))
+
+
+def test_unknown_tally_cell_is_reported(tmp_path):
+    text = PB_SPHERE.format(engine="vector") + '\n[tallies.f]\ntype = "flux"\ncells = ["sheild"]\n'
+    with pytest.raises(InputError, match="unknown cell 'sheild' \\(did you mean 'shield'\\?\\)"):
         Model.from_toml(write(tmp_path, text))
 
 
@@ -212,7 +226,8 @@ def test_examples_cover_every_feature():
                     '"plane"', '"z-plane"', '"sphere"',
                     '"cylinder"', '"box"', '"point"', '"cell"', '"beam"',
                     '"uniform"', '"discrete"', '"maxwell"', '"watt"',
-                    '"leakage"', '"absorption"', '"detector"', "mesh", "|", "~"):
+                    '"leakage"', '"absorption"', '"detector"', '"flux"', '"collision"',
+                    "cells       =", "mesh", "|", "~"):
         assert feature in text, feature
 
 
@@ -255,8 +270,9 @@ def test_scalar_engine_matches_hand_built_api(tmp_path, data_dir):
            for st, child in zip(to_states(src), transport_ss.spawn(400))]
     stats = escape_statistics(np.array([r["final_weight"] for r in per]),
                               np.array([r["final_energy"] for r in per]), 400, 10)
-    assert results["leak"]["total"] == stats["leakage"]
-    assert results["leak"]["mean_energy"] == stats["avg_energy"]
+    # leakage is summed per neutron now, so only the rounding order differs
+    assert results["leak"]["total"] == pytest.approx(stats["leakage"], rel=1e-12)
+    assert results["leak"]["mean_energy"] == pytest.approx(stats["avg_energy"], rel=1e-12)
 
 
 def test_vector_engine_matches_hand_built_api(tmp_path, data_dir):
@@ -271,8 +287,9 @@ def test_vector_engine_matches_hand_built_api(tmp_path, data_dir):
     res = vt.run_transport(reader, regions, src, np.random.default_rng(transport_ss),
                            Settings("shielding", 400, 10))
     stats = escape_statistics(res["leaked_weight"], res["escape_energy"], 400, 10)
-    assert results["leak"]["total"] == stats["leakage"]
-    assert results["leak"]["mean_energy"] == stats["avg_energy"]
+    # leakage is summed per neutron now, so only the rounding order differs
+    assert results["leak"]["total"] == pytest.approx(stats["leakage"], rel=1e-12)
+    assert results["leak"]["mean_energy"] == pytest.approx(stats["avg_energy"], rel=1e-12)
 
 
 # ------------------------------------------------------------ results / CLI
@@ -286,7 +303,8 @@ def test_results_record_provenance(tmp_path, data_dir):
     assert prov["resolved_input"]["run"]["batches"] == 10
     assert prov["pyneut_version"]
     leak = saved["tallies"]["leak"]
-    assert len(leak["spectrum"]) == 20 and len(leak["energy_bins"]) == 21
+    assert leak["axes"] == ["energy"]
+    assert len(leak["mean"]) == 20 and len(leak["energy_bins"]) == 21
 
 
 def test_cli_check_and_run(tmp_path, data_dir, capsys):

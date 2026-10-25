@@ -1,0 +1,63 @@
+# Neutron flux spectrum in each layer of a shield, plus where neutrons are
+# absorbed: a 14.1 MeV source in an iron / lead / B4C shield.
+#
+# Shows: flux tallies (track-length estimator, the default), cell filters,
+# energy filters, and filters combined (cells x energy). Flux is reported as
+# track length per source neutron (cm), i.e. integrated over each cell's
+# volume, as OpenMC reports it.
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 31
+
+[materials.iron]
+density  = 7.87
+nuclides = { Fe56 = 1.0 }
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[materials.b4c]
+density  = 2.52
+nuclides = { B10 = 4, C12 = 1 }
+
+[surfaces]
+cavity = { type = "sphere", center = [0, 0, 0], radius = 2 }
+r_iron = { type = "sphere", center = [0, 0, 0], radius = 10 }
+r_lead = { type = "sphere", center = [0, 0, 0], radius = 15 }
+r_b4c  = { type = "sphere", center = [0, 0, 0], radius = 17 }
+
+[cells]
+cavity = { region = "-cavity",           material = "void" }
+iron   = { region = "+cavity & -r_iron", material = "iron" }
+lead   = { region = "+r_iron & -r_lead", material = "lead" }
+b4c    = { region = "+r_lead & -r_b4c",  material = "b4c" }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "14.1 MeV"
+
+# flux spectrum in every cell: 4 cells x 50 energy bins. The track-length
+# estimator also scores the void cavity, where nothing collides.
+[tallies.flux]
+type        = "flux"
+cells       = ["cavity", "iron", "lead", "b4c"]
+energy_bins = { log = ["1 eV", "15 MeV", 50] }
+
+# the same flux from collisions only, for comparison (zero in the void)
+[tallies.flux_collision]
+type      = "flux"
+estimator = "collision"
+cells     = ["iron", "lead", "b4c"]
+
+# where the neutrons end up
+[tallies.absorbed]
+type  = "absorption"
+cells = ["iron", "lead", "b4c"]
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["1 eV", "15 MeV", 50] }

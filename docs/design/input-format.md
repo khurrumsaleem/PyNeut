@@ -1,9 +1,18 @@
 # Design: TOML input files and a tally system
 
-Status: **PRs 1 and 2 implemented** (the `pyneut` package, and the input
-format: `docs/input-format.md` is the user reference). PR 3, the tally
-interface (#6), is next. Addresses #26 (configuration file), #6 (tallies) and
-the API-ergonomics roadmap item.
+Status: **PRs 1–3 implemented.** PR 1 is the `pyneut` package and PR 2 the
+input format (`docs/input-format.md` is the user reference). PR 3 is the
+tally interface (#6): `pyneut/tallies.py` and the engine hooks. Addresses
+#26 (configuration file), #6 (tallies) and the API-ergonomics roadmap item.
+
+**Where PR 3 differs from this proposal:**
+- Flux has a track-length estimator as well as the collision estimator, and
+  it is the default. It works in voids and has lower variance. A mesh flux
+  still uses the collision estimator.
+- Leakage became a per-neutron event score. The old per-history escape-energy
+  histogram distorted spectra in multiplying problems.
+- Tallies work in eigenvalue mode too, over the active generations.
+- Detector tallies still take a box and run on the scalar engine.
 
 **Where PR 2 differs from this proposal:**
 - Detector tallies take a `box`, not a `cell`, because the kernel's detector

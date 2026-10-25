@@ -221,8 +221,24 @@ plt.ylabel("Leaked weight per source neutron")
 plt.savefig("escape_spectrum.png", dpi=200)
 ```
 
-The validation suite builds its spectra the same way, with
-`statistics.escape_statistics(..., e_bins=...)`.
+This per-history histogram is only right when each history leaks at most one
+neutron. When (n,xn) or fission makes one history leak several, it puts all
+of their weight at their average energy. The leakage tally of the input
+format, or a `pyneut.tallies.Scorer` passed to the engine, scores each
+neutron at its own energy instead:
+
+```python
+from pyneut.tallies import Scorer, TallyDef
+
+scorer = Scorer([TallyDef("leak", "leakage", energy_bins=bins)], n_batches=1)
+args = [a + (scorer,) for a in args]            # an optional 11th element
+results = [simulate_single_particle(a) for a in args]
+leak = scorer.finalize([n])["leak"]             # per source neutron
+print(leak["total"], leak["mean"])              # total, and per energy bin
+```
+
+A scorer can't be shared between processes, so this runs serially. For
+parallel runs, the input format handles splitting the work and merging.
 
 ## 4. Mesh tally for ParaView
 

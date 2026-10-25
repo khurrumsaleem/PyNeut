@@ -44,8 +44,12 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
   - `vector_transport.py` advances the whole particle bank one event at a time
     with NumPy. It is 5–64× faster on a single core.
   Both parallelise across cores with `multiprocessing`.
-- **Outputs:** leakage and escape-energy tallies with batch-means errors, a
-  Cartesian mesh tally written as VTK for ParaView, and trajectory recording.
+- **Tallies:**
+  - flux (track-length or collision estimator), absorption and leakage;
+  - filtered by cell, energy and a 3-D mesh, in any combination, on either
+    engine and in either mode;
+  - batch-means errors on every bin;
+  - mesh maps written as VTK for ParaView.
 
 ## Validation at a glance
 
@@ -59,10 +63,20 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
 | Analytic: Beer–Lambert attenuation, elastic [α,1] and ξ | 13 / 13 pass |
 | Cross-section reader vs `openmc.data` (elastic, capture, (n,2n)) | identical (0.000 %) for every isotope |
 
-Three spectrum shapes are POOR even though their integrals agree: the two
-(n,2n) spheres and B10 at 1 keV. Fe56 at 14 MeV is the one integral warning.
+12 of the 13 spectrum shapes are GOOD. B10 at 1 keV is the one POOR shape,
+and Fe56 at 14 MeV the one integral warning. The (n,2n) shapes used to be POOR
+because the leakage spectrum was binned by each history's average escape
+energy. Scored per neutron, they are GOOD (χ²/dof 0.52 and 0.38).
+
+> **Known issue above ~5 MeV:** the total cross section leaves out some
+> reactions, for example MT 5 (n,anything), MT 22 (n,nα), MT 28 (n,np) and
+> charged-particle channels above MT 107. At 14 MeV it is 18–22 % low for
+> Al27, Fe54 and Ni58, 7.9 % for O16 and 2.8 % for Fe56. Results below 5 MeV,
+> including every k_eff above, are unaffected. Details are in the
+> [validation report](docs/index.md#limitations).
+
 The [validation report](docs/index.md) has the full tables, the method, and
-what is and is not understood about these cases.
+the tally comparison against OpenMC.
 
 <p align="center">
   <img src="docs/images/icsbep_benchmarks.png"
@@ -168,6 +182,7 @@ pyneut/                    the package
   vector_transport.py        event-based NumPy engine + multiprocessing wrappers
   criticality.py             k-eigenvalue power iteration (scalar engine)
   model.py                   TOML input: Model, validation, solve, results
+  tallies.py                 event Scorer shared by both engines: flux, absorption, leakage
   regions.py, sources.py     region-expression parser, source distributions
   cli.py                     the `pyneut` command (check, run)
   settings.py, tally.py, statistics.py, mesh.py, random_number_generator.py
@@ -216,12 +231,15 @@ The full list, with how each item shows up in the validation, is in
    subset so the benchmarks run without the full library.
 3. **Performance.** The vector engine is done. A Numba-compiled kernel is in
    progress on the `numba-experiment` branch.
-4. **Tallies (issue #6).** A scoring interface in both engines, so tallies
-   can be filtered by cell, mesh and energy on either engine, plus a flux
-   tally. See the [design](docs/design/input-format.md).
-5. **Physics.** Energy-correlated (n,xn) multiplicity, S(α,β), multi-temperature
-   data, a track-length estimator and a natural-abundance database.
-6. **Code hygiene.** Keep the element-alias map in one place, and make the
+4. **Cross sections above 5 MeV.** Count every reaction in the total, and
+   transport the neutron-emitting ones (MT 5, 22, 28 …) with their ENDF
+   secondary distributions. Then re-validate at 14 MeV with steel, aluminium
+   and water.
+5. **Tallies.** Track-length flux on meshes, surface-current tallies, and
+   detector tallies on the vector engine.
+6. **Physics.** Energy-correlated (n,xn) multiplicity, S(α,β), multi-temperature
+   data and a natural-abundance database.
+7. **Code hygiene.** Keep the element-alias map in one place, and make the
    low-level cross-section reader raise an error for a missing data file, as
    input files already do.
 

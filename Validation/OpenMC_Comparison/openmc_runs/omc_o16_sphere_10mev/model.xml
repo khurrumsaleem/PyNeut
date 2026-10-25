@@ -2,19 +2,19 @@
 <model>
   <materials>
     <material id="10">
-      <density units="g/cm3" value="0.0014"/>
-      <nuclide ao="1.0" name="O16"/>
+      <density value="0.0014" units="g/cm3"/>
+      <nuclide name="O16" ao="1.0"/>
     </material>
   </materials>
   <geometry>
     <cell id="10" material="10" region="-22" universe="10"/>
-    <surface boundary="vacuum" coeffs="0.0 0.0 0.0 20.0" id="22" type="sphere"/>
+    <surface id="22" type="sphere" boundary="vacuum" coeffs="0.0 0.0 0.0 20.0"/>
   </geometry>
   <settings>
     <run_mode>fixed source</run_mode>
     <particles>500</particles>
     <batches>20</batches>
-    <source particle="neutron" strength="1.0" type="independent">
+    <source type="independent" strength="1.0" particle="neutron">
       <space type="point">
         <parameters>0 0 0</parameters>
       </space>
