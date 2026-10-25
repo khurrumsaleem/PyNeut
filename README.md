@@ -109,7 +109,7 @@ python tools/fetch_data.py --verify             # check the files you have
 
 It checks every file against the SHA-256 of the snapshot the committed
 validation results were produced with (`tools/endfb-viii.0.sha256`), so a
-match means your results should reproduce the tables. The archive is
+match means your results should reproduce the tables. The 3.4 GB archive is
 streamed, and only the requested files are written.
 
 > A nuclide name with no matching file is an error, both in input files and

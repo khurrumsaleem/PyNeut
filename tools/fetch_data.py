@@ -15,8 +15,9 @@ Usage
   python tools/fetch_data.py U235 Pu239           # named nuclides
   python tools/fetch_data.py --verify             # check what is already there
 
-The whole archive is several GB and has to be read up to the last requested
-file, so a full fetch takes a while even though only ~0.8 GB is kept.
+The archive is 3.4 GB and has to be read up to the last requested file, so
+a fetch takes as long as downloading most of it, even though only ~0.8 GB is
+kept.
 """
 import argparse
 import hashlib
