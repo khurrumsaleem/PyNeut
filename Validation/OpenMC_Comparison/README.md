@@ -17,15 +17,15 @@ those files the first time a live run needs it.
 
 | Script | What it checks |
 |--------|----------------|
-| `run_all.py` | **Main runner.** All 13 fixed-source cases plus the cross-section check. It prints the summary table and writes `validation_results.csv` and `validation_manifest.json`. `--plots` writes one spectrum panel per case to `docs/images/cases/`. |
-| `validate_<iso>.py` | Case definitions for Pb208, Fe56, Be9, Al27, C12 and O16. Each file also runs on its own. |
+| `run_all.py` | **Main runner.** All 16 fixed-source cases plus the cross-section check. It prints the summary table and writes `validation_results.csv` and `validation_manifest.json`. `--plots` writes one spectrum panel per case to `docs/images/cases/`. |
+| `validate_<iso>.py` | Case definitions for Pb208, Fe56, Be9, Al27, C12, O16 and Ni58. Each file also runs on its own. |
 | `validate_thermal.py` | The thermal and epithermal cases (B10, Cd112, C12). |
 | `validate_xs.py` | The cross-section reader against `openmc.data.IncidentNeutron`, channel by channel. It needs no `cross_sections.xml`. |
 | `validate_secondary.py` | (n,2n) emission isolated from transport: the energy and angle of the emitted neutron at a fixed incident energy, against OpenMC's parsed distribution. |
 | `validate_mixture.py` | Per-collision isotope selection in a B10 + C12 sphere, with identical number densities in both codes. |
 | `validate_keff.py` | k-eigenvalue: by default a sweep of bare U235 sphere radii. `--benchmarks` runs Godiva, Jezebel-23 and Jezebel against the published k_eff and needs U233/U234/U238 and Pu239–241/Ga data. |
 | `validate_pincell.py` | k∞ for the BEAVRS hot-zero-power pin cell in an all-reflective cube. The matched-physics comparison uses free-gas H at 294 K and no S(α,β), over several seeds per code. With OpenMC's thermal-scattering data available, it also reports a realistic OpenMC value at 600 K with `c_H_in_H2O`. `--save-reference` rewrites `pincell_reference.json`. Needs the 36 pin-cell nuclides. |
-| `run_all_vector.py` | The 13 fixed-source cases on the vector engine, graded against the committed OpenMC references (OpenMC is not re-run), with a scalar-vs-vector speed-up column. Writes `validation_results_vector.csv`. |
+| `run_all_vector.py` | The 16 fixed-source cases on the vector engine, graded against the committed OpenMC references (OpenMC is not re-run), with a scalar-vs-vector speed-up column. Writes `validation_results_vector.csv`. |
 | `benchmark_pincell_vector.py` | The pin cell on the vector engine, compared against `pincell_reference.json`, plus throughput. |
 | `benchmark_pincell_runtime.py` | Wall-clock time of PyNeut (scalar) vs OpenMC on the pin cell, with the same budget and core count. |
 | `main_benchmark.py` | A minimal PyNeut-only Pb208 sphere timing run. |

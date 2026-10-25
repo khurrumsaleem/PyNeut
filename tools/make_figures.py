@@ -102,16 +102,16 @@ def fig_validation_summary():
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.set_ylim(-0.7, len(rows) - 0.3)
-    # Scale to the data, not to the 4 sigma threshold: every case sits below
-    # 2.6, and stretching the axis out to 4 would squash the whole suite into
-    # the left half of the figure to show empty band.
+    # Scale to the data, not to the 4 sigma threshold: every case sits well
+    # below it, and stretching the axis out to 4 would squash the whole suite
+    # into the left half of the figure to show empty band.
     z_all = [z for z in z_leak + z_energy if np.isfinite(z)]
     ax.set_xlim(0, max(2.5, max(z_all)) * 1.15)
     ax.set_xlabel("Disagreement with OpenMC  (combined standard errors, $z$)")
     ax.grid(axis="y", visible=False)
 
-    # State the actual outcome rather than asserting a clean sweep -- one case
-    # (the 14 MeV iron slab) does land in the warning band.
+    # State the actual outcome, counted from the table, rather than
+    # asserting a clean sweep.
     n_ok = sum(1 for r in rows if max(zval(r, "leakage_zscore"),
                                       zval(r, "energy_zscore")) <= Z_OK)
     ax.set_title("PyNeut vs OpenMC: {} of {} cases agree within "

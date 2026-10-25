@@ -143,6 +143,23 @@ def _cm_to_lab(E_cm, mu_cm, E_in, A):
     return E_lab, max(-1.0, min(1.0, mu_lab))
 
 
+def _neutron_multiplicity(reader, element, mt, energy, rng):
+    """Number of neutrons a continuum reaction emits: an integer whose mean is
+    the reaction's neutron yield at `energy` (from the data file).
+
+    Integer yields -- MT 16 (2), MT 17 (3), MT 91 and most (n,n'x) (1) --
+    draw no random number, so their random-number stream is unchanged.
+    A fractional yield, as for MT 5 (n,anything), is floor(y) plus one with
+    probability y - floor(y), and can be 0: the neutron is then removed.
+    """
+    y = reader.neutron_yield(element, mt, energy)
+    n = int(y)
+    frac = y - n
+    if frac > 1e-12 and rng.random() < frac:
+        n += 1
+    return n
+
+
 def _emit_secondary_neutron(reader, element, mt, E_in, E_avail, A, rng):
     """Sample (energy_eV, mu, source) for one emitted (n,xn) neutron.
 
@@ -435,8 +452,20 @@ def run_particle_kernel(state, reader, mediums, A, N, sampler, region_bounds, tr
                         selected_mt = mt
                         break
 
-                # continuum / multiplication channels (n,2n), (n,3n), (n,nc)
-                if selected_mt in [16, 17, 91]:
+                # every neutron-emitting channel other than the discrete levels
+                # (MT 51-90): (n,2n), (n,3n), continuum (n,n'), and (n,anything),
+                # (n,n alpha), (n,np) ... sampled from the file's distribution
+                if not 51 <= selected_mt <= 90:
+                    n_out = _neutron_multiplicity(reader, element_i, selected_mt,
+                                                  state["energy"], rng)
+                    if n_out == 0:
+                        # the reaction emitted no neutron, so the history ends.
+                        # Like OpenMC, this is not absorption (MT 101-type
+                        # reactions), so it is counted on its own.
+                        _inc(counters, "removal_events")
+                        _inc(counters, "removed_weight", state["weight"])
+                        return "removed", children, trajectory, absorbed_weight_local, absorbed_coords_local
+
                     E_in_snapshot = state["energy"]
                     # emitted cosines are measured from the incident direction
                     u_in, v_in, w_in = u, v, w
@@ -491,9 +520,10 @@ def run_particle_kernel(state, reader, mediums, A, N, sampler, region_bounds, tr
                     state["theta"] = np.arccos(w)
                     state["energy"] = max(1e-5, E_prime)
 
-                    # (n,2n) banks one extra neutron, (n,3n) two; each is sampled
-                    # independently with no per-neutron energy constraint
-                    n_children = {16: 1, 17: 2}.get(selected_mt, 0)
+                    # every neutron beyond the first is banked: one for (n,2n),
+                    # two for (n,3n); each is sampled independently with no
+                    # per-neutron energy constraint
+                    n_children = n_out - 1
                     if selected_mt == 17:
                         _inc(counters, "n3n_events")
                     for _ in range(n_children):

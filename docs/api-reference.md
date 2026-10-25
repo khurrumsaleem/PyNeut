@@ -216,14 +216,23 @@ back to `"293.6K"`.
 > or an energy below threshold all return 0. A misspelt nuclide therefore acts
 > like vacuum. The aliases `C`/`Graphite` → C0, `Be` → Be9, `Al` → Al27,
 > `Fe` → Fe56 and `Pb` → Pb208 each pick a single file. They don't expand an
-> element into its natural isotopes.
+> element into its natural isotopes. They live in one place,
+> `cross_section_read.ELEMENT_ALIASES`, and `data_name(element)` resolves one.
+
+Each nuclide's reactions are classified from its file. Elastic is MT 2 and
+fission is MT 18, and redundant reactions (sums of others, such as MT 103 when
+its partials MT 600–649 are present) are skipped. Every other reaction is
+*neutron-emitting* if a neutron is among its products (MT 16, 17, 51–91, but
+also MT 5, 22, 28 …) and *absorption* if not (MT 102–117, 600–849). A file
+without product data falls back to MT 16, 17 and 51–91 as emitting.
 
 | Method | Returns |
 |--------|---------|
 | `get_cross_section(element, mt, energy)` | microscopic σ in barns (lin–lin interpolation) |
-| `get_cross_sections(element, energy, sampler, N, A, rng=None)` | macroscopic `(Σ_el, Σ_in, Σ_abs, Σ_fis, Σ_t)` in cm⁻¹. Σ_in sums MT 16, 17 and 51–91, and Σ_abs sums MT 102–107. With an `rng`, the unresolved-resonance probability tables are sampled. |
+| `get_cross_sections(element, energy, sampler, N, A, rng=None)` | macroscopic `(Σ_el, Σ_in, Σ_abs, Σ_fis, Σ_t)` in cm⁻¹. Σ_in sums the neutron-emitting reactions and Σ_abs the absorption ones, so Σ_t is the evaluation's total. With an `rng`, the unresolved-resonance probability tables are sampled. |
 | `calculate_macroscopic_xs(mic, N)` | `mic · N · 1e-24`, or 0 for non-positive input |
 | `get_inelastic_components(element, energy, N)` | `(Σ_in_total, [(mt, Σ, Q), …])` |
+| `neutron_yield(element, mt, energy)` | mean number of neutrons the reaction emits, from its tabulated yield (1 if the file has none). MT 5's can be fractional. |
 | `get_elastic_mu(element, energy, rng)` | a CM cosine from the tabulated MT 2 angular distribution, or an isotropic one if there is none |
 | `get_secondary_correlated_sample(element, mt, energy, rng)` | `(E_out, mu, ok)` from Law 61 or Kalbach–Mann |
 | `get_secondary_energy(element, mt, energy, rng)` | `E_out` from uncorrelated (Law 4) data, or `None` |

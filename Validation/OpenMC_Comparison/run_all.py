@@ -33,6 +33,7 @@ import validate_Be9
 import validate_Al27
 import validate_C12
 import validate_O16
+import validate_Ni58
 import validate_thermal
 import validate_xs
 
@@ -45,6 +46,7 @@ _MODULES = {
     'Al27':    validate_Al27,
     'C12':     validate_C12,
     'O16':     validate_O16,
+    'Ni58':    validate_Ni58,
     'Thermal': validate_thermal,
 }
 
