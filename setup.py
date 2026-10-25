@@ -8,7 +8,7 @@ setup(
     license="MIT",
     # The package is imported as `src` (e.g. `from src.simulation import ...`).
     packages=["src"],
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     install_requires=["numpy", "h5py"],
     extras_require={
         "test": ["pytest", "trimesh", "rtree"],
