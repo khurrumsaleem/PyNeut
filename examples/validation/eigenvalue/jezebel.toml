@@ -1,0 +1,28 @@
+# Jezebel, PU-MET-FAST-001: a bare sphere of delta-phase plutonium-gallium alloy, R = 6.3849 cm.
+# ICSBEP critical benchmark, published k_eff = 1.0000. Same model as
+# Validation/OpenMC_Comparison/validate_keff.py --benchmarks.
+
+[run]
+mode        = "eigenvalue"
+particles   = 3000
+generations = 120
+inactive    = 30
+seed        = 1
+
+[materials.core.atom_densities]        # atoms/b-cm
+Pu239 = 3.7047e-2
+Pu240 = 1.7512e-3
+Pu241 = 1.1674e-4
+Ga69  = 8.2663e-4
+Ga71  = 5.4857e-4
+
+[surfaces]
+surface = { type = "sphere", center = [0, 0, 0], radius = 6.3849 }
+
+[cells]
+core = { region = "-surface", material = "core" }
+
+[source]
+space     = { type = "sphere", center = [0, 0, 0], radius = 6.3849 }
+direction = "isotropic"
+energy    = { type = "watt", nuclide = "Pu239" }

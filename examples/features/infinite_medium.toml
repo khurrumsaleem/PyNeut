@@ -1,0 +1,33 @@
+# An infinite iron medium: a 2 MeV source in a cube whose faces all reflect.
+#
+# Shows: reflective boundaries. Nothing can leak, so every source neutron's
+# weight ends up absorbed; the leakage tally is there to show it stays zero.
+
+[run]
+mode      = "fixed-source"
+particles = 5_000
+seed      = 3
+
+[materials.iron]
+density  = 7.87
+nuclides = { Fe56 = 1.0 }
+
+[surfaces.cube]
+type     = "box"
+min      = [-10, -10, -10]
+max      = [10, 10, 10]
+boundary = "reflective"
+
+[cells]
+iron = { region = "-cube", material = "iron" }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "2 MeV"
+
+[tallies.absorbed]
+type = "absorption"
+
+[tallies.leakage]
+type = "leakage"

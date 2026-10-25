@@ -1,0 +1,36 @@
+# A U235 metal core inside a 10 cm lead reflector, solved for k_eff on the
+# scalar (reference) engine.
+#
+# Shows: an eigenvalue problem with two materials, and 'engine = "scalar"'.
+# The reflector returns neutrons to the core, so the critical size is smaller
+# than the bare sphere's ~8.4 cm.
+
+[run]
+mode        = "eigenvalue"
+engine      = "scalar"
+particles   = 1000
+generations = 60
+inactive    = 15
+seed        = 4
+workers     = 0               # use every core
+
+[materials.u235]
+density  = 18.74
+nuclides = { U235 = 1.0 }
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[surfaces]
+core      = { type = "sphere", center = [0, 0, 0], radius = 7.0 }
+reflector = { type = "sphere", center = [0, 0, 0], radius = 17.0 }
+
+[cells]
+core      = { region = "-core",              material = "u235" }
+reflector = { region = "+core & -reflector", material = "lead" }
+
+[source]
+space     = { type = "sphere", center = [0, 0, 0], radius = 7.0 }
+direction = "isotropic"
+energy    = { type = "watt", nuclide = "U235" }

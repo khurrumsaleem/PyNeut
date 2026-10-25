@@ -1,0 +1,36 @@
+# A slab of simplified stainless steel specified by weight fractions, hit by
+# a 14.1 MeV beam.
+#
+# Shows: 'fractions = "weight"'. Natural elements are not expanded, so the
+# steel is written with its main isotopes (each element lumped into its most
+# abundant isotope here, for brevity).
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 24
+
+[materials.steel]
+density   = 7.9
+fractions = "weight"
+nuclides  = { Fe56 = 0.70, Cr52 = 0.19, Ni58 = 0.09, Mn55 = 0.02 }
+
+[surfaces]
+slab  = { type = "box", min = [0, -30, -30],  max = [5, 30, 30] }
+world = { type = "box", min = [-5, -40, -40], max = [10, 40, 40] }
+
+[cells]
+steel = { region = "-slab",          material = "steel" }
+air   = { region = "-world & +slab", material = "void" }
+
+[source]
+space     = { type = "point", xyz = [-2, 0, 0] }
+direction = { type = "beam", direction = [1, 0, 0] }
+energy    = "14.1 MeV"
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["10 keV", "15 MeV", 60] }
+
+[tallies.absorbed]
+type = "absorption"

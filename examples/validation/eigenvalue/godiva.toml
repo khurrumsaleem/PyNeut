@@ -1,0 +1,26 @@
+# Godiva, HEU-MET-FAST-001: a bare sphere of 93.7 % enriched uranium, R = 8.7407 cm.
+# ICSBEP critical benchmark, published k_eff = 1.0000. Same model as
+# Validation/OpenMC_Comparison/validate_keff.py --benchmarks.
+
+[run]
+mode        = "eigenvalue"
+particles   = 3000
+generations = 120
+inactive    = 30
+seed        = 1
+
+[materials.core.atom_densities]        # atoms/b-cm
+U234  = 4.8271e-4
+U235  = 4.4994e-2
+U238  = 2.4984e-3
+
+[surfaces]
+surface = { type = "sphere", center = [0, 0, 0], radius = 8.7407 }
+
+[cells]
+core = { region = "-surface", material = "core" }
+
+[source]
+space     = { type = "sphere", center = [0, 0, 0], radius = 8.7407 }
+direction = "isotropic"
+energy    = { type = "watt", nuclide = "U235" }

@@ -1,0 +1,26 @@
+# Bare sphere of pure U235 metal, R = 11 cm (supercritical, k ~ 1.24).
+# One point of the radius sweep in Validation/OpenMC_Comparison/validate_keff.py;
+# pure U235 at 18.74 g/cm3 goes critical near R = 8.4 cm.
+
+[run]
+mode        = "eigenvalue"
+particles   = 2000          # neutrons per generation
+generations = 120
+inactive    = 20
+seed        = 1
+
+[materials.u235]
+density  = 18.74
+nuclides = { U235 = 1.0 }
+
+[surfaces]
+surface = { type = "sphere", center = [0, 0, 0], radius = 11.0 }
+
+[cells]
+core = { region = "-surface", material = "u235" }
+
+# first-generation guess: uniform in the sphere with a U235 Watt spectrum
+[source]
+space     = { type = "sphere", center = [0, 0, 0], radius = 11.0 }
+direction = "isotropic"
+energy    = { type = "watt", nuclide = "U235" }

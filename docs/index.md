@@ -291,11 +291,14 @@ secondary energy is sampled: Law 61 correlated, Law 4, or the Maxwellian
 fallback. The suite reports the fallback rate per case, and it is 0 % in every
 case.
 
-**Unit tests:** `pytest` runs 165 tests. They cover geometry against analytic
-and trimesh ground truth, material and number-density arithmetic, the
-cross-section reader, scattering kinematics, inelastic physics, batch
-statistics, tally uncertainties, criticality, mixtures and the vector engine.
-The 36 tests that need the ENDF library skip without it.
+**Unit tests:** `pytest` runs 228 tests. They cover geometry against
+analytic and trimesh ground truth, material and number-density arithmetic,
+the cross-section reader, scattering kinematics, inelastic physics, batch
+statistics, tally uncertainties, criticality, mixtures, the vector engine and
+the input format. Every file in `examples/` is loaded, checked and run, and
+the input-file path is checked to give the same answer as the hand-built API
+at the same seed. The 36 tests that need the ENDF library skip without it.
+The input-format tests use a synthetic data library instead.
 
 ---
 

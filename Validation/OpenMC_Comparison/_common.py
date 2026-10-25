@@ -104,24 +104,11 @@ def data_manifest(endf_path=None):
     the evaluation files: refreshing endfb/neutron moved the BEAVRS pin cell by
     a few hundred pcm in both codes, which once masqueraded as a transport bias.
     Every recorded reference therefore carries this digest, so two numbers can
-    be checked for comparability before they are differenced.
-
-    Returns {'n_files', 'total_bytes', 'sha256'}, the digest being over the
-    sorted (name, size) pairs of endfb/neutron/*.h5 -- cheap, and sensitive to
-    any file being added, removed or replaced.
+    be checked for comparability before they are differenced. The same digest
+    is written into every `pyneut run` results file (pyneut.data.data_manifest).
     """
-    import glob
-    import hashlib
-    base = endf_path or ENDF_PATH
-    files = sorted(glob.glob(os.path.join(base, 'neutron', '*.h5')))
-    h = hashlib.sha256()
-    total = 0
-    for f in files:
-        size = os.path.getsize(f)
-        total += size
-        h.update(f"{os.path.basename(f)}:{size}\n".encode())
-    return {'n_files': len(files), 'total_bytes': total,
-            'sha256': h.hexdigest()[:16]}
+    from pyneut.data import data_manifest as _manifest
+    return _manifest(endf_path or ENDF_PATH)
 
 
 def _assert_awr_matches_data(element, A, tol=1e-3):

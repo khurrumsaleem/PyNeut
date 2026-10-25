@@ -1,0 +1,32 @@
+# A lead "dumbbell" (two overlapping spheres) with a void channel drilled
+# along x, and an isotropic source in the middle of the channel.
+#
+# Shows every region operator: '|' joins the two spheres, '&' and '~' cut
+# the channel out of them, and parentheses group terms.
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 11
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[surfaces]
+left    = { type = "sphere", center = [-6, 0, 0], radius = 8 }
+right   = { type = "sphere", center = [6, 0, 0],  radius = 8 }
+channel = { type = "cylinder", axis = "x", center = [0, 0, 0], radius = 1 }
+
+[cells]
+lead    = { region = "(-left | -right) & ~(-channel)", material = "lead" }
+channel = { region = "(-left | -right) & -channel",    material = "void" }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "2 MeV"
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["10 keV", "2.02 MeV", 50] }

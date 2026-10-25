@@ -1,0 +1,34 @@
+# The Pb208 sphere of validation/fixed_source/pb208_elastic.toml in analog
+# mode: every neutron is followed with unit weight and is absorbed outright,
+# instead of losing weight at each collision (implicit capture, the default).
+#
+# Shows: 'transport = "analog"'. The answer is the same; implicit capture
+# usually gets there with less variance.
+
+[run]
+mode      = "fixed-source"
+transport = "analog"
+particles = 10_000
+batches   = 20
+seed      = 12345
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[surfaces]
+shell = { type = "sphere", center = [0, 0, 0], radius = 10.0 }
+
+[cells]
+lead = { region = "-shell", material = "lead" }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "2 MeV"
+
+[tallies.leakage]
+type = "leakage"
+
+[tallies.absorbed]
+type = "absorption"

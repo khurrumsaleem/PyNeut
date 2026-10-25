@@ -1,0 +1,43 @@
+# A 1 MeV pencil beam on a 10 cm Pb208 slab, with a detector cell behind it.
+#
+# Shows: a beam source, box surfaces, carving cells out of each other with
+# complement and union, analog transport, and a detector tally.
+#
+# The detector counts the histories that reach its box. Detection is tested
+# where a neutron stops (a collision or a surface crossing), so the detector is
+# its own void cell: entering it means crossing its surface. Detector tallies
+# run on the scalar engine for now.
+
+[run]
+mode      = "fixed-source"
+engine    = "scalar"
+transport = "analog"         # unweighted histories, so the detector count is a probability
+particles = 20_000
+seed      = 7
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[surfaces]
+slab     = { type = "box", min = [0, -50, -50],  max = [10, 50, 50] }
+detector = { type = "box", min = [12, -5, -5],   max = [14, 5, 5] }
+world    = { type = "box", min = [-10, -60, -60], max = [20, 60, 60] }
+
+[cells]
+slab     = { region = "-slab",                               material = "lead" }
+detector = { region = "-detector",                           material = "void" }
+air      = { region = "-world & ~(-slab | -detector)",       material = "void" }
+
+[source]
+space     = { type = "point", xyz = [-5, 0, 0] }
+direction = { type = "beam", direction = [1, 0, 0] }
+energy    = "1 MeV"
+
+[tallies.through]
+type = "detector"
+box  = { min = [12, -5, -5], max = [14, 5, 5] }
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["10 keV", "1.01 MeV", 40] }

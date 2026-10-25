@@ -1,0 +1,35 @@
+# The main.py demo as an input file: a 50 eV beam into a B10 cylinder, with a
+# 40 x 40 x 40 absorption mesh written as VTK for ParaView
+# (docs/images/mesh_tally_paraview.png shows the result).
+#
+# Shows: a capped cylinder, a mesh tally, and a world box around the model.
+# Mesh tallies run on the scalar engine for now.
+
+[run]
+mode      = "fixed-source"
+engine    = "scalar"
+particles = 20_000
+seed      = 12345
+
+[materials.boron]
+density  = 2.34
+nuclides = { B10 = 1.0 }
+
+[surfaces]
+side   = { type = "cylinder", axis = "z", center = [0, 0, 0], radius = 10 }
+top    = { type = "z-plane", at = 10 }
+bottom = { type = "z-plane", at = -10 }
+world  = { type = "box", min = [-20, -40, -20], max = [20, 40, 20] }
+
+[cells]
+absorber = { region = "-side & -top & +bottom",             material = "boron" }
+air      = { region = "-world & ~(-side & -top & +bottom)", material = "void" }
+
+[source]
+space     = { type = "point", xyz = [-10.5, 0, 0] }
+direction = { type = "beam", direction = [1, 0, 0] }
+energy    = "50 eV"
+
+[tallies.absorption_map]
+type = "absorption"
+mesh = { min = [-15, -15, -15], max = [15, 15, 15], dims = [40, 40, 40] }

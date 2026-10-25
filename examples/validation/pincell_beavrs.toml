@@ -1,0 +1,99 @@
+# BEAVRS hot-zero-power PWR pin cell as an infinite lattice: a fuel pin in an
+# all-reflective cube of side one pitch. k-infinity, matched physics (free-gas
+# hydrogen at 294 K, no S(alpha,beta)), as Validation/OpenMC_Comparison/
+# validate_pincell.py.
+#
+# The atom densities expand the BEAVRS element-level specification (UO2 at
+# 3.1 wt% U235, 10.24 g/cm3; He gap; Zircaloy-4; water with 975 ppm-atom B at
+# 0.743 g/cm3) with IUPAC natural abundances and AME atomic masses, and the
+# OpenMC uranium enrichment rule. validate_pincell.py takes its densities from
+# OpenMC instead, so the two agree to ~1e-4 relative, not exactly.
+#
+# A reflective lattice has no leakage: thermal histories run for hundreds of
+# collisions, so this is the slowest example.
+
+[run]
+mode        = "eigenvalue"
+particles   = 3000
+generations = 140
+inactive    = 40
+seed        = 1
+
+[materials.fuel.atom_densities]           # UO2, 3.1 wt% enriched (atoms/b-cm)
+U234 = 6.407905e-06
+U235 = 7.169170e-04
+U236 = 3.283824e-06
+U238 = 2.211682e-02
+O16  = 4.557585e-02
+O17  = 1.736101e-05
+O18  = 9.365808e-05
+
+[materials.gap.atom_densities]            # helium fill gas
+He3 = 3.024159e-10
+He4 = 2.256832e-04
+
+[materials.clad.atom_densities]           # Zircaloy-4
+Zr90  = 2.185490e-02
+Zr91  = 4.766024e-03
+Zr92  = 7.284966e-03
+Zr94  = 7.382665e-03
+Zr96  = 1.189382e-03
+Sn112 = 4.679370e-06
+Sn114 = 3.183902e-06
+Sn115 = 1.640192e-06
+Sn116 = 7.014232e-05
+Sn117 = 3.704904e-05
+Sn118 = 1.168395e-04
+Sn119 = 4.143896e-05
+Sn120 = 1.571690e-04
+Sn122 = 2.233555e-05
+Sn124 = 2.793150e-05
+Fe54  = 8.680681e-06
+Fe56  = 1.362681e-04
+Fe57  = 3.147025e-06
+Fe58  = 4.188113e-07
+Cr50  = 3.300306e-06
+Cr52  = 6.364311e-05
+Cr53  = 7.216618e-06
+Cr54  = 1.796369e-06
+
+[materials.water.atom_densities]          # borated light water
+H1  = 4.963918e-02
+H2  = 5.709162e-06
+O16 = 2.476212e-02
+O17 = 9.432528e-06
+O18 = 5.088601e-05
+B10 = 4.816174e-06
+B11 = 1.938571e-05
+
+# pitch 1.25984 cm: the cube runs from -0.62992 to +0.62992 on every axis
+[surfaces]
+pellet     = { type = "cylinder", axis = "z", center = [0, 0, 0], radius = 0.39218 }
+clad_inner = { type = "cylinder", axis = "z", center = [0, 0, 0], radius = 0.40005 }
+clad_outer = { type = "cylinder", axis = "z", center = [0, 0, 0], radius = 0.45720 }
+
+[surfaces.cube]
+type     = "box"
+min      = [-0.62992, -0.62992, -0.62992]
+max      = [ 0.62992,  0.62992,  0.62992]
+boundary = "reflective"
+
+# Every cell is clipped to the cube, so the reflective faces bound all of them
+# and the cells do not overlap (no priorities needed).
+[cells]
+fuel  = { region = "-pellet & -cube",                 material = "fuel" }
+gap   = { region = "+pellet & -clad_inner & -cube",   material = "gap" }
+clad  = { region = "+clad_inner & -clad_outer & -cube", material = "clad" }
+water = { region = "+clad_outer & -cube",             material = "water" }
+
+# first-generation guess: uniform in the pellet, U235 Watt spectrum
+[source]
+direction = "isotropic"
+energy    = { type = "watt", nuclide = "U235" }
+
+[source.space]
+type   = "cylinder"
+axis   = "z"
+center = [0, 0, 0]
+radius = 0.39218
+range  = [-0.62992, 0.62992]
