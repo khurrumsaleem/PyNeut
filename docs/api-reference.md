@@ -5,8 +5,8 @@ layout: default
 
 # API reference
 
-The public interface of the `src` package, which you import as
-`from src.<module> import ...`. Units are eV, cm, g/cm³ and atoms/cm³
+The public interface of the `pyneut` package, which you import as
+`from pyneut.<module> import ...`. Units are eV, cm, g/cm³ and atoms/cm³
 throughout. The [Quick Start](QUICK_START.md) shows these pieces working
 together.
 
@@ -37,7 +37,7 @@ atoms/cm³, and `kg_mass`, the mass of one atom in kg. Pass `kg_mass` to
 `VelocitySampler`.
 
 ```python
-from src.material import Material, NEUTRON_MASS_AMU
+from pyneut.material import Material, NEUTRON_MASS_AMU
 AWR = 206.190                                               # Pb208, from the data file
 lead = Material("Pb208", 11.35, AWR * NEUTRON_MASS_AMU, atomic_weight_ratio=AWR)
 ```
@@ -103,7 +103,7 @@ along the ray, or `None`) and `normal(x, y, z)`.
 | `Box(x_min, x_max, y_min, y_max, z_min, z_max)` | the axis-aligned box. `Box` is a `Region` made of six planes, so you can put it in another region's `surfaces`. `boundary_type` applies to all six faces. |
 
 ```python
-from src.medium import Region, Cylinder, Plane, Box
+from pyneut.medium import Region, Cylinder, Plane, Box
 shield = Region(surfaces=[Cylinder("z", 10, (0, 0, 0)),
                           Plane(0, 0, 1, 10), Plane(0, 0, -1, 10)],   # |z| <= 10
                 name="Shield", priority=1, element="Pb208")
@@ -259,7 +259,7 @@ Fission-source power iteration on the scalar engine. `settings.mode` must be
 `"criticality"`. Each generation transports its source (in parallel when
 `pool` is given), then resamples the fission bank back to the starting size.
 k is averaged over the active generations. Per-generation progress is logged
-to `src.criticality`, at INFO with `verbose=True` and at DEBUG otherwise. To
+to `pyneut.criticality`, at INFO with `verbose=True` and at DEBUG otherwise. To
 see it, configure logging, for example with
 `logging.basicConfig(level=logging.INFO)`. If the fission chain dies out, a
 warning is logged and the iteration stops early.

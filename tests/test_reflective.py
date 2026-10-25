@@ -14,12 +14,12 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.geometry import reflect_direction, calculate_nearest_crossing
-from src.medium import Box, Plane, Region, Sphere
-from src.random_number_generator import RNGHandler
-from src.settings import Settings
-from src.simulation import run_particle_kernel
-from src.vt_calc import VelocitySampler
+from pyneut.geometry import reflect_direction, calculate_nearest_crossing
+from pyneut.medium import Box, Plane, Region, Sphere
+from pyneut.random_number_generator import RNGHandler
+from pyneut.settings import Settings
+from pyneut.simulation import run_particle_kernel
+from pyneut.vt_calc import VelocitySampler
 
 
 class _AbsorberReader:

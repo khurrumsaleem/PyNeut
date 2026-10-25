@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from src.tally import Tally
+from pyneut.tally import Tally
 
 
 def _result(final_weight=0.0, final_energy=0.0, absorbed_weight=0.0,

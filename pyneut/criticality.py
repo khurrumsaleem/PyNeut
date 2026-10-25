@@ -80,7 +80,7 @@ def run_keff(reader, mediums, initial_source, A, N, sampler, settings,
     "criticality" (analog transport) so fission neutrons are produced. Pass a
     `multiprocessing.Pool` to parallelise the per-generation transport.
 
-    Per-generation progress goes to the `src.criticality` logger: at INFO when
+    Per-generation progress goes to the `pyneut.criticality` logger: at INFO when
     `verbose` is set, at DEBUG otherwise. Enable it with, for example,
     `logging.basicConfig(level=logging.INFO)`.
 

@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
-from src.medium import Region, Plane, Sphere, Cylinder, Box
-from src.geometry import calculate_nearest_boundary
+from pyneut.medium import Region, Plane, Sphere, Cylinder, Box
+from pyneut.geometry import calculate_nearest_boundary
 
 
 class TestBasicGeometry:

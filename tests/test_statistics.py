@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from src.statistics import (
+from pyneut.statistics import (
     batch_edges,
     mean_sem,
     escape_statistics,

@@ -1,4 +1,4 @@
-# src/mesh.py
+# pyneut/mesh.py
 import logging
 
 import numpy as np

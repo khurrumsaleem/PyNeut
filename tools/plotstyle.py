@@ -5,7 +5,7 @@ per-case validation panels and the geometry renders should read as one
 system rather than as three scripts that each reached for matplotlib's
 defaults.
 
-Nothing here is imported by ``src``.  PyNeut's transport core depends on
+Nothing here is imported by ``pyneut``.  PyNeut's transport core depends on
 numpy and h5py alone, and that stays true -- matplotlib is a tool-side
 dependency only.
 

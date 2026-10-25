@@ -1,4 +1,4 @@
-# src/tally.py
+# pyneut/tally.py
 import numpy as np
 
 from .statistics import escape_statistics

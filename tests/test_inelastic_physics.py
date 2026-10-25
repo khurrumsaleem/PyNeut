@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
-from src.physics import inelastic_scattering
-from src.vt_calc import VelocitySampler
-from src.random_number_generator import RNGHandler
+from pyneut.physics import inelastic_scattering
+from pyneut.vt_calc import VelocitySampler
+from pyneut.random_number_generator import RNGHandler
 
 class TestInelasticPhysics:
 

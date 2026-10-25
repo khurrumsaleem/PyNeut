@@ -1,5 +1,5 @@
 import pytest
-from src.medium import Cylinder
+from pyneut.medium import Cylinder
 import math
 
 def direction_cosines(x, y, z, x_o, y_o, z_o):

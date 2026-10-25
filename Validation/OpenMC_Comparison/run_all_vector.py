@@ -1,7 +1,7 @@
 """Vector-engine validation — all 13 fixed-source cases + speedup table.
 
 Runs every case from the per-isotope validate_*.py modules through the
-event-based vector engine (src/vector_transport.py) and grades it by z-score
+event-based vector engine (pyneut/vector_transport.py) and grades it by z-score
 against the committed OpenMC reference values in validation_results.csv (the
 same references the paper uses; OpenMC is NOT re-run). The scalar kernel is
 timed on a smaller sample of the same cases to produce a per-case speedup
@@ -31,15 +31,15 @@ from _common import ENDF_PATH, PROJECT_ROOT, energy_grid, N_BATCHES  # noqa: E40
 
 sys.path.insert(0, PROJECT_ROOT)
 
-from src.cross_section_read import CrossSectionReader          # noqa: E402
-from src.material import Material, Nuclide, NEUTRON_MASS_AMU   # noqa: E402
-from src.medium import Region, Sphere, Cylinder, Box, Plane    # noqa: E402
-from src.random_number_generator import RNGHandler             # noqa: E402
-from src.settings import Settings                              # noqa: E402
-from src.simulation import simulate_single_particle            # noqa: E402
-from src.statistics import escape_statistics                   # noqa: E402
-from src.vt_calc import VelocitySampler                        # noqa: E402
-from src import vector_transport as vt                         # noqa: E402
+from pyneut.cross_section_read import CrossSectionReader          # noqa: E402
+from pyneut.material import Material, Nuclide, NEUTRON_MASS_AMU   # noqa: E402
+from pyneut.medium import Region, Sphere, Cylinder, Box, Plane    # noqa: E402
+from pyneut.random_number_generator import RNGHandler             # noqa: E402
+from pyneut.settings import Settings                              # noqa: E402
+from pyneut.simulation import simulate_single_particle            # noqa: E402
+from pyneut.statistics import escape_statistics                   # noqa: E402
+from pyneut.vt_calc import VelocitySampler                        # noqa: E402
+from pyneut import vector_transport as vt                         # noqa: E402
 
 import validate_Pb208    # noqa: E402
 import validate_Fe56     # noqa: E402

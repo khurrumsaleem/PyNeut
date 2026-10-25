@@ -10,11 +10,11 @@ import os
 import numpy as np
 import pytest
 
-from src.cross_section_read import CrossSectionReader
-from src.geometry import calculate_nearest_crossing
-from src.material import Material, Nuclide
-from src.medium import Box, Cylinder, Plane, Region, Sphere
-from src import vector_transport as vt
+from pyneut.cross_section_read import CrossSectionReader
+from pyneut.geometry import calculate_nearest_crossing
+from pyneut.material import Material, Nuclide
+from pyneut.medium import Box, Cylinder, Plane, Region, Sphere
+from pyneut import vector_transport as vt
 
 ENDF = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "endfb")
 HAVE_DATA = os.path.exists(os.path.join(ENDF, "neutron", "Pb208.h5"))
@@ -196,9 +196,9 @@ def test_static_elastic_energy_bounds():
 
 def _scalar_reference(reader, nuc, radius, energy, n, seed):
     """Per-history leaked weight / escape energy from the scalar kernel."""
-    from src.random_number_generator import RNGHandler
-    from src.settings import Settings
-    from src.simulation import simulate_single_particle
+    from pyneut.random_number_generator import RNGHandler
+    from pyneut.settings import Settings
+    from pyneut.simulation import simulate_single_particle
 
     region = Region([Sphere(center=(0, 0, 0), radius=radius)],
                     name="sphere", element=nuc.element)
@@ -231,7 +231,7 @@ def _vector_run(reader, nuc, radius, energy, n, seed):
     source = {"x": np.zeros(n), "y": np.zeros(n), "z": np.zeros(n),
               "u": s * np.cos(phi), "v": s * np.sin(phi), "w": mu,
               "energy": np.full(n, energy)}
-    from src.settings import Settings
+    from pyneut.settings import Settings
     return vt.run_transport(reader, [region], source, rng,
                             Settings("shielding", n))
 
@@ -250,7 +250,7 @@ def test_transport_matches_scalar_kernel(element, density, amass, awr,
     """Elastic-only fast/intermediate spheres: the vector engine must agree
     with the scalar kernel on leakage and mean escape energy within
     statistics, and its approximate lanes must never fire."""
-    from src.statistics import escape_statistics
+    from pyneut.statistics import escape_statistics
 
     if not os.path.exists(os.path.join(ENDF, "neutron", f"{element}.h5")):
         pytest.skip(f"{element} data not present")
@@ -292,7 +292,7 @@ def test_transport_matches_scalar_kernel(element, density, amass, awr,
 ])
 def test_transport_full_physics_matches_scalar(element, density, amass, awr,
                                                radius, energy, expect):
-    from src.statistics import escape_statistics
+    from pyneut.statistics import escape_statistics
 
     if not os.path.exists(os.path.join(ENDF, "neutron", f"{element}.h5")):
         pytest.skip(f"{element} data not present")
@@ -321,7 +321,7 @@ def test_transport_full_physics_matches_scalar(element, density, amass, awr,
 # ---------------------------------------------------------------------------
 
 def test_sample_watt_many_moments():
-    from src.physics import WATT_PARAMS
+    from pyneut.physics import WATT_PARAMS
     a, b = WATT_PARAMS["U235"]
     rng = np.random.default_rng(21)
     E = vt.sample_watt_many(rng, 200_000, a, b)
@@ -361,9 +361,9 @@ def test_urr_band_sampling_mean_neutral():
 def test_keff_vector_matches_scalar():
     """Bare U235 metal sphere near the critical radius: the vector power
     iteration must agree with the scalar run_keff within statistics."""
-    from src.criticality import run_keff, uniform_sphere_source
-    from src.random_number_generator import RNGHandler
-    from src.settings import Settings
+    from pyneut.criticality import run_keff, uniform_sphere_source
+    from pyneut.random_number_generator import RNGHandler
+    from pyneut.settings import Settings
 
     reader = CrossSectionReader(ENDF)
     rho, amass, awr, radius = 18.74, 235.0, 233.0248, 8.7
@@ -430,8 +430,8 @@ def test_interp_shared_matches_numpy():
 def test_run_transport_parallel_matches_serial():
     """Splitting a fixed-source bank across workers must agree with a serial
     run within statistics, sum the counters, and preserve per-history length."""
-    from src.settings import Settings
-    from src.statistics import escape_statistics
+    from pyneut.settings import Settings
+    from pyneut.statistics import escape_statistics
 
     reader = CrossSectionReader(ENDF)
     mat = Material("Fe56", 7.874, 55.845, 55.454)
@@ -464,7 +464,7 @@ def test_run_transport_parallel_matches_serial():
 def test_run_transport_parallel_one_worker_is_serial():
     """n_workers=1 must reproduce a serial run bit-for-bit (same seed, same
     single spawned stream, no chunk boundary)."""
-    from src.settings import Settings
+    from pyneut.settings import Settings
 
     reader = CrossSectionReader(ENDF)
     mat = Material("Pb208", 11.35, 208.0, 206.19)
@@ -494,7 +494,7 @@ def test_run_transport_parallel_one_worker_is_serial():
 def test_run_keff_parallel_replications():
     """Seed-parallel k-eigenvalue returns one k per seed and a seed mean that
     agrees with a serial replica within statistics."""
-    from src.settings import Settings
+    from pyneut.settings import Settings
 
     reader = CrossSectionReader(ENDF)
     rho, amass, awr, radius = 18.74, 235.0, 233.0248, 8.7
