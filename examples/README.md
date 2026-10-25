@@ -31,8 +31,11 @@ any case on its own.
 | `validation/fixed_source/fe56_sphere_25kev.toml` | Fe56 sphere R=15, 25 keV |
 | `validation/fixed_source/be9_n2n_14mev.toml` | Be9 sphere R=10, 14 MeV, (n,2n) |
 | `validation/fixed_source/al27_slab_1mev.toml` | Al27 slab 1 cm thick, 1 MeV |
+| `validation/fixed_source/al27_slab_14mev.toml` | Al27 slab 10 cm thick, 14 MeV |
 | `validation/fixed_source/c12_cyl_2mev.toml` | C12 cylinder R=10 × 20, 2 MeV |
 | `validation/fixed_source/o16_sphere_10mev.toml` | O16 gas sphere R=20, 10 MeV |
+| `validation/fixed_source/o16_sphere_14mev.toml` | O16 sphere R=15 at liquid density, 14 MeV |
+| `validation/fixed_source/ni58_sphere_14mev.toml` | Ni58 sphere R=5, 14 MeV |
 | `validation/fixed_source/b10_epithermal_1kev.toml` | B10 sphere R=1, 1 keV |
 | `validation/fixed_source/cd112_thermal.toml` | Cd112 sphere R=2, thermal |
 | `validation/fixed_source/c12_thermal.toml` | C12 sphere R=5, thermal |

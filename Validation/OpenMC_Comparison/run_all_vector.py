@@ -47,11 +47,12 @@ import validate_Be9      # noqa: E402
 import validate_Al27     # noqa: E402
 import validate_C12      # noqa: E402
 import validate_O16      # noqa: E402
+import validate_Ni58     # noqa: E402
 import validate_thermal  # noqa: E402
 
 CASES = (validate_Pb208._CASES + validate_Fe56._CASES + validate_Be9._CASES
          + validate_Al27._CASES + validate_C12._CASES + validate_O16._CASES
-         + validate_thermal._CASES)
+         + validate_Ni58._CASES + validate_thermal._CASES)
 
 REF_CSV = os.path.join(HERE, 'validation_results.csv')
 OUT_CSV = os.path.join(HERE, 'validation_results_vector.csv')

@@ -586,7 +586,8 @@ def run_streaming(reader, mediums, source, rng, legacy=None, max_events=100_000)
 from .physics import (  # noqa: E402  (grouped with the physics they mirror)
     m_n, eV_to_J, sample_maxwellian, get_nuclear_temperature,
 )
-from .simulation import _cm_to_lab, _emit_secondary_neutron  # noqa: E402
+from .simulation import (  # noqa: E402
+    _cm_to_lab, _emit_secondary_neutron, _neutron_multiplicity)
 
 
 def sample_velocity_many(sampler, vn, rng, return_mu=False, max_iter=1000):
@@ -871,7 +872,8 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
     absorbed = 0.0
     counters = {"collisions": 0, "freegas_events": 0,
                 "discrete_inelastic_events": 0, "nxn_events": 0,
-                "children_banked": 0, "killed": 0}
+                "children_banked": 0, "killed": 0, "removal_events": 0,
+                "removed_weight": 0.0}
     if fission_bank is not None:
         counters["fission_production"] = 0.0
         counters["fission_events"] = 0
@@ -1177,6 +1179,18 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
                     mt = int(mts_sel[j])
                     E_in = float(Ew[lane])
                     E_avail = max(1.0, E_in - float(q_sel[j]))
+                    n_out = _neutron_multiplicity(reader, iso.element, mt,
+                                                  E_in, rng)
+                    if n_out == 0:
+                        # no neutron out (e.g. MT 5, fractional yield): the
+                        # history ends, counted apart from absorption as in
+                        # OpenMC
+                        counters["removal_events"] += 1
+                        counters["removed_weight"] += float(wgt[gi])
+                        alive[gi] = False
+                        E_out[lane], mu_out[lane] = E_in, 1.0
+                        done[lane] = True
+                        continue
                     counters["nxn_events"] += 1
 
                     E_p, mu_p, psrc, valid = 0.0, 0.0, None, False
@@ -1208,7 +1222,7 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
                     mu_out[lane] = float(np.clip(mu_p, -1.0, 1.0))
                     done[lane] = True
 
-                    n_children = {16: 1, 17: 2}.get(mt, 0)
+                    n_children = n_out - 1
                     for _ in range(n_children):
                         cE, cmu, _csrc = _emit_secondary_neutron(
                             reader, iso.element, mt, E_in, E_avail, A, rng)

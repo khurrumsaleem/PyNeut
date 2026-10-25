@@ -4,6 +4,50 @@ import h5py
 import numpy as np
 from .angular_distribution import AngularDistribution
 
+# Short names accepted for a few common nuclides. Each maps to ONE data file;
+# none is expanded into its natural isotopes.
+ELEMENT_ALIASES = {"C": "C0", "Graphite": "C0", "Be": "Be9", "Al": "Al27",
+                   "Fe": "Fe56", "Pb": "Pb208"}
+
+
+def data_name(element):
+    """The data-file name for `element` (resolving ELEMENT_ALIASES)."""
+    return ELEMENT_ALIASES.get(element, element)
+
+
+# Fission is read from MT 18 (present in every fissile file, either as the
+# reaction or as the redundant sum of its partials MT 19/20/21/38).
+FISSION_MTS = (18, 19, 20, 21, 38)
+# Neutron-emitting channels assumed when a file carries no product data (the
+# synthetic test library); with product data the file decides.
+LEGACY_EMITTING_MTS = (16, 17, *range(51, 92))
+
+class _Yield:
+    """A product yield as a function of incident energy (eV).
+
+    OpenMC stores it as a Polynomial (coefficients, constant first) or a
+    Tabulated1D (energies and yields, interpolated linearly here). A class
+    rather than a closure so the reader stays picklable for multiprocessing.
+    """
+
+    def __init__(self, dset):
+        kind = dset.attrs.get("type", b"")
+        kind = kind.decode() if isinstance(kind, bytes) else kind
+        data = dset[()]
+        if kind == "Tabulated1D":
+            self.x, self.y = np.asarray(data[0], float), np.asarray(data[1], float)
+            self.coeffs = None
+        else:
+            self.coeffs = np.atleast_1d(np.asarray(data, float))
+
+    def __call__(self, energy):
+        if self.coeffs is None:
+            return np.interp(energy, self.x, self.y)
+        if self.coeffs.size == 1:
+            return self.coeffs[0]
+        return np.polynomial.polynomial.polyval(energy, self.coeffs)
+
+
 class SecondaryDistribution:
     """Secondary energy-angle reader for (n,xn)/continuum reactions.
 
@@ -27,8 +71,7 @@ class SecondaryDistribution:
 
     def load(self):
         if self.loaded: return
-        element_map = {"C": "C0", "Graphite": "C0", "Be": "Be9", "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"}
-        fname = element_map.get(self.element, self.element)
+        fname = data_name(self.element)
         file_path = os.path.join(self.base_path, f"neutron/{fname}.h5")
 
         if not os.path.exists(file_path): return
@@ -282,6 +325,8 @@ class CrossSectionReader:
         self.temperature = temperature
         self._cache = {}
         self._available_inelastic_mts = {}
+        self._absorption_mts = {}
+        self._neutron_yields = {}
         self.angular_dists = {}
         self.secondary_dists = {}
         self._nu_cache = {}
@@ -295,12 +340,7 @@ class CrossSectionReader:
         self._urr_cache = {}
 
     def _load_data_to_cache(self, element: str, mt: int):
-        # Map common names
-        element_map = {
-            "C": "C0", "Graphite": "C0", "C12": "C12",
-            "Be": "Be9", "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"
-        }
-        actual_element = element_map.get(element, element)
+        actual_element = data_name(element)
         mt_str = f"{mt:03}"
         file_path = os.path.join(self.base_path, f"neutron/{actual_element}.h5")
 
@@ -366,14 +406,27 @@ class CrossSectionReader:
             self._cache[(element, mt)] = None
 
     def _scan_inelastic_mts(self, element: str):
-        if element in self._available_inelastic_mts: return
-        # Map common names
-        element_map = {"C": "C0", "Graphite": "C0", "Be": "Be9", "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"}
-        actual = element_map.get(element, element)
-        file_path = os.path.join(self.base_path, f"neutron/{actual}.h5")
-        found = []
-        check_list = [16, 17] + list(range(51, 92))
+        """Classify the nuclide's reactions from its data file.
 
+        Only non-redundant reactions count (a redundant one, such as MT 103
+        when its partials MT 600-649 are present, is a sum of others), so the
+        total built from them is the evaluation's total, as OpenMC builds it.
+        Elastic (MT 2) and fission (MT 18) are handled on their own. Every
+        other reaction with a neutron among its products is a neutron-emitting
+        channel: (n,xn), discrete and continuum inelastic, and also MT 5
+        (n,anything), 22 (n,na), 28 (n,np) and the like. A reaction with no
+        neutron product is absorption: MT 102-117 and the 600-849 partials.
+        A file without product data falls back to LEGACY_EMITTING_MTS.
+
+        Fills _available_inelastic_mts (emitting channels: 16, 17, 51-91 in
+        that order, then the others ascending), _absorption_mts and
+        _neutron_yields.
+        """
+        if element in self._available_inelastic_mts:
+            return
+        actual = data_name(element)
+        file_path = os.path.join(self.base_path, f"neutron/{actual}.h5")
+        emitting, absorbing, yields = [], [], {}
         try:
             with h5py.File(file_path, 'r') as f:
                 valid_roots = [k for k in f.keys() if k != "filetype"]
@@ -381,12 +434,33 @@ class CrossSectionReader:
                     if f"neutron/{actual}" in f: root = f"neutron/{actual}"
                     elif f"{actual}" in f: root = f"{actual}"
                     else: root = valid_roots[0]
-                    root_reactions = f"{root}/reactions"
-                    if root_reactions in f:
-                        for mt in check_list:
-                            if f"reaction_{mt:03}" in f[root_reactions]: found.append(mt)
-        except: pass
-        self._available_inelastic_mts[element] = found
+                    reactions = f.get(f"{root}/reactions")
+                    for name in (reactions or {}):
+                        grp = reactions[name]
+                        mt = int(grp.attrs.get("mt", name.split("_")[-1]))
+                        if mt == 2 or mt in FISSION_MTS:
+                            continue
+                        if int(grp.attrs.get("redundant", 0)):
+                            continue
+                        products = [grp[k] for k in sorted(grp) if k.startswith("product_")]
+                        neutron = next((pr for pr in products
+                                        if pr.attrs.get("particle") in (b"neutron", "neutron")), None)
+                        is_emitting = (neutron is not None) if products else mt in LEGACY_EMITTING_MTS
+                        (emitting if is_emitting else absorbing).append(mt)
+                        if neutron is not None and "yield" in neutron:
+                            yields[mt] = _Yield(neutron["yield"])
+        except OSError:
+            pass
+        legacy = [mt for mt in LEGACY_EMITTING_MTS if mt in emitting]
+        self._available_inelastic_mts[element] = legacy + sorted(set(emitting) - set(legacy))
+        self._absorption_mts[element] = sorted(absorbing)
+        self._neutron_yields[element] = yields
+
+    def neutron_yield(self, element, mt, energy):
+        """Mean number of neutrons a reaction emits at `energy` (1 if unknown)."""
+        self._scan_inelastic_mts(element)
+        y = self._neutron_yields[element].get(mt)
+        return 1.0 if y is None else float(y(energy))
 
     def get_cross_section_data(self, element: str, mt: int):
         cache_key = (element, mt)
@@ -417,8 +491,7 @@ class CrossSectionReader:
         return total, comps
 
     def get_elastic_mu(self, element, energy, rng):
-        element_map = {"C": "C0", "Graphite": "C0", "Be": "Be9", "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"}
-        actual = element_map.get(element, element)
+        actual = data_name(element)
         if actual not in self.angular_dists:
             dist = AngularDistribution(self.base_path, actual, mt=2)
             dist.load()
@@ -426,8 +499,7 @@ class CrossSectionReader:
         return self.angular_dists[actual].sample_mu(energy, rng)
 
     def get_secondary_energy(self, element, mt, energy, rng):
-        element_map = {"C": "C0", "Graphite": "C0", "Be": "Be9", "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"}
-        actual = element_map.get(element, element)
+        actual = data_name(element)
         key = (actual, mt)
         if key not in self.secondary_dists:
             dist = SecondaryDistribution(self.base_path, actual, mt)
@@ -437,8 +509,7 @@ class CrossSectionReader:
 
     def get_secondary_correlated_sample(self, element, mt, energy, rng):
         """Wrapper for Correlated Sampling."""
-        element_map = {"C": "C0", "Graphite": "C0", "Be": "Be9", "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"}
-        actual = element_map.get(element, element)
+        actual = data_name(element)
         key = (actual, mt)
         if key not in self.secondary_dists:
             dist = SecondaryDistribution(self.base_path, actual, mt)
@@ -448,8 +519,7 @@ class CrossSectionReader:
 
     def get_secondary_frame(self, element, mt):
         """Reference frame of an (n,xn) secondary distribution: 'cm' or 'lab'."""
-        element_map = {"C": "C0", "Graphite": "C0", "Be": "Be9", "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"}
-        actual = element_map.get(element, element)
+        actual = data_name(element)
         key = (actual, mt)
         if key not in self.secondary_dists:
             dist = SecondaryDistribution(self.base_path, actual, mt)
@@ -457,21 +527,20 @@ class CrossSectionReader:
             self.secondary_dists[key] = dist
         return self.secondary_dists[key].ref_frame
 
-    # absorption channels summed into Sigma_cap:
-    #   102 (n,g), 103 (n,p), 104 (n,d), 105 (n,t), 106 (n,He3), 107 (n,a)
-    _ABSORPTION_MTS = (102, 103, 104, 105, 106, 107)
-
     def _build_fast_table(self, element):
         """Pre-sum every reaction onto the nuclide's shared energy grid: elastic
-        (MT2), neutron-emitting inelastic (16/17/51-91), absorption (102-107) and
-        fission (MT18). Stored once so get_cross_sections does one search/channel.
+        (MT 2), the neutron-emitting channels, absorption and fission (MT 18),
+        as classified by _scan_inelastic_mts. Stored once so
+        get_cross_sections does one search per channel. Their sum is the
+        evaluation's total cross section.
         """
         self._scan_inelastic_mts(element)
         inel_mts = self._available_inelastic_mts.get(element, [])
+        abs_mts = self._absorption_mts.get(element, [])
 
         grid = None
         parts = {}
-        for mt in (2, 18, *inel_mts, *self._ABSORPTION_MTS):
+        for mt in (2, 18, *inel_mts, *abs_mts):
             d = self.get_cross_section_data(element, mt)
             if d is None:
                 continue
@@ -489,8 +558,7 @@ class CrossSectionReader:
         el = parts.get(2, zeros)
         fis = parts.get(18, zeros)
         in_ = sum((parts[mt] for mt in inel_mts if mt in parts), np.zeros(len(grid)))
-        cap = sum((parts[mt] for mt in self._ABSORPTION_MTS if mt in parts),
-                  np.zeros(len(grid)))
+        cap = sum((parts[mt] for mt in abs_mts if mt in parts), np.zeros(len(grid)))
         self._fast_tables[element] = {'grid': grid, 'el': el, 'in': in_,
                                       'cap': cap, 'fis': fis}
 
@@ -501,9 +569,7 @@ class CrossSectionReader:
         shape (n_energy, 6, n_bands) where the 6 columns are cumulative
         probability, total, elastic, fission, (n,gamma) and heating.
         """
-        element_map = {"C": "C0", "Graphite": "C0", "Be": "Be9",
-                       "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"}
-        actual = element_map.get(element, element)
+        actual = data_name(element)
         file_path = os.path.join(self.base_path, f"neutron/{actual}.h5")
         data = None
         if os.path.exists(file_path):
@@ -630,8 +696,7 @@ class CrossSectionReader:
 
     def _load_nu(self, element):
         """Cache the total fission neutron yield ν̄(E) table, or None if absent."""
-        element_map = {"C": "C0", "Graphite": "C0", "Be": "Be9", "Al": "Al27", "Fe": "Fe56", "Pb": "Pb208"}
-        actual = element_map.get(element, element)
+        actual = data_name(element)
         file_path = os.path.join(self.base_path, f"neutron/{actual}.h5")
         table = None
         if os.path.exists(file_path):

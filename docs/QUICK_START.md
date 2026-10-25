@@ -417,7 +417,7 @@ OpenMC alongside, is `Validation/OpenMC_Comparison/validate_keff.py --benchmarks
 ## 9. The vector engine
 
 `pyneut.vector_transport` runs the same physics on a whole bank at once and is
-5–64× faster on a single core. It works with arrays, not dicts:
+6–58× faster on a single core. It works with arrays, not dicts:
 
 - The source is a dict of equal-length arrays `x, y, z, u, v, w, energy`
   (direction cosines, not angles), with an optional `weight`.

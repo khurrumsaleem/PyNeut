@@ -15,7 +15,7 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
 
 <p align="center">
   <img src="docs/images/validation_summary.png"
-       alt="Every PyNeut validation case plotted against OpenMC as a z-score; twelve of thirteen fall inside the two-sigma agreement band"
+       alt="Every PyNeut validation case plotted against OpenMC as a z-score; all sixteen fall inside the two-sigma agreement band"
        width="88%">
 </p>
 
@@ -24,8 +24,11 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
 - **Physics:** elastic scattering with tabulated ENDF angular distributions,
   plus free-gas thermal motion below 10 eV. Discrete inelastic levels, and
   continuum and (n,2n)/(n,3n) emission through ENDF Law 61 / Kalbach–Mann.
-  Capture, unresolved-resonance probability tables, and fission with ν̄ and a
-  Watt spectrum.
+  Every other reaction in the file, such as (n,np), (n,nα) and (n,anything),
+  emitted with its tabulated yield, so the total cross section is the
+  evaluation's own. Capture and charged-particle absorption,
+  unresolved-resonance probability tables, and fission with ν̄ and a Watt
+  spectrum.
 - **Input files:** a whole calculation is one TOML file: materials, geometry
   written as region expressions (`"-outer & -top & +bottom"`), source
   distributions, tallies and run settings. `pyneut check` validates it and
@@ -42,7 +45,7 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
   - `simulation.py` follows one neutron at a time. It is the readable
     reference implementation.
   - `vector_transport.py` advances the whole particle bank one event at a time
-    with NumPy. It is 5–64× faster on a single core.
+    with NumPy. It is 6–58× faster on a single core.
   Both parallelise across cores with `multiprocessing`.
 - **Tallies:**
   - flux (track-length or collision estimator), absorption and leakage;
@@ -55,25 +58,20 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
 
 | Check | Result |
 |-------|--------|
-| 13 fixed-source cases vs OpenMC 0.15 (Pb208, Fe56, Be9, Al27, C12, O16, B10, Cd112; thermal to 14 MeV) | **12 OK, 1 warning, 0 failures** (OK means within 2σ) |
+| 16 fixed-source cases vs OpenMC 0.15 (Pb208, Fe56, Be9, Al27, C12, O16, Ni58, B10, Cd112; thermal to 14 MeV) | **16 OK, 0 warnings, 0 failures** (OK means within 2σ) |
 | ICSBEP Godiva / Jezebel-23 / Jezebel | k_eff within **0.8σ** of the benchmark and **1.3σ** of OpenMC |
 | Bare U235 spheres, R = 6 / 8.7 / 11 cm, vs OpenMC eigenvalue mode | z = 1.5 / 2.0 / 2.2 |
 | BEAVRS pin cell, k∞ with matched physics (5 seeds per code) | **+72 ± 98 pcm**, z = 0.74 |
 | B10 + C12 mixture vs OpenMC | leakage within 0.1σ, escape energy within 0.4σ |
 | Analytic: Beer–Lambert attenuation, elastic [α,1] and ξ | 13 / 13 pass |
-| Cross-section reader vs `openmc.data` (elastic, capture, (n,2n)) | identical (0.000 %) for every isotope |
+| Cross-section reader vs `openmc.data` (elastic, capture, (n,2n), and the total) | identical (0.000 %) for every isotope |
 
-12 of the 13 spectrum shapes are GOOD. B10 at 1 keV is the one POOR shape,
-and Fe56 at 14 MeV the one integral warning. The (n,2n) shapes used to be POOR
-because the leakage spectrum was binned by each history's average escape
-energy. Scored per neutron, they are GOOD (χ²/dof 0.52 and 0.38).
-
-> **Known issue above ~5 MeV:** the total cross section leaves out some
-> reactions, for example MT 5 (n,anything), MT 22 (n,nα), MT 28 (n,np) and
-> charged-particle channels above MT 107. At 14 MeV it is 18–22 % low for
-> Al27, Fe54 and Ni58, 7.9 % for O16 and 2.8 % for Fe56. Results below 5 MeV,
-> including every k_eff above, are unaffected. Details are in the
-> [validation report](docs/index.md#limitations).
+14 of the 16 spectrum shapes are GOOD, Al27 at 14 MeV is FAIR, and B10 at
+1 keV is the one POOR shape. Until October 2026 the total cross section left
+out reactions such as (n,np) and (n,nα), which made the 14 MeV Al27, O16 and
+Ni58 cases fail by 12–33σ on mean escape energy. Every reaction is now
+counted, as the [validation report](docs/index.md#reactions-above-5-mev)
+shows.
 
 The [validation report](docs/index.md) has the full tables, the method, and
 the tally comparison against OpenMC.
@@ -161,7 +159,7 @@ print(results.summary())
 ```
 
 - [`examples/`](examples/README.md) has an input for every validated case
-  (all 13 fixed-source cases, Godiva, Jezebel, Jezebel-23, the U235 spheres
+  (all 16 fixed-source cases, Godiva, Jezebel, Jezebel-23, the U235 spheres
   and the BEAVRS pin cell) and one for each feature.
 - The [input format reference](docs/input-format.md) documents every key.
 - The [Quick Start guide](docs/QUICK_START.md) covers the low-level Python
@@ -187,7 +185,7 @@ pyneut/                    the package
   cli.py                     the `pyneut` command (check, run)
   settings.py, tally.py, statistics.py, mesh.py, random_number_generator.py
 examples/                  input files for every validated case and every feature
-tests/                     pytest suite (36 tests need ENDF data and skip without it)
+tests/                     pytest suite (42 tests need ENDF data and skip without it)
 Validation/
   analytic_benchmarks.py     exact analytic checks, no OpenMC needed
   OpenMC_Comparison/         live PyNeut-vs-OpenMC suite, see its README
@@ -231,17 +229,12 @@ The full list, with how each item shows up in the validation, is in
    subset so the benchmarks run without the full library.
 3. **Performance.** The vector engine is done. A Numba-compiled kernel is in
    progress on the `numba-experiment` branch.
-4. **Cross sections above 5 MeV.** Count every reaction in the total, and
-   transport the neutron-emitting ones (MT 5, 22, 28 …) with their ENDF
-   secondary distributions. Then re-validate at 14 MeV with steel, aluminium
-   and water.
-5. **Tallies.** Track-length flux on meshes, surface-current tallies, and
+4. **Tallies.** Track-length flux on meshes, surface-current tallies, and
    detector tallies on the vector engine.
-6. **Physics.** Energy-correlated (n,xn) multiplicity, S(α,β), multi-temperature
-   data and a natural-abundance database.
-7. **Code hygiene.** Keep the element-alias map in one place, and make the
-   low-level cross-section reader raise an error for a missing data file, as
-   input files already do.
+5. **Physics.** S(α,β), multi-temperature data and a natural-abundance
+   database.
+6. **Code hygiene.** Make the low-level cross-section reader raise an error
+   for a missing data file, as input files already do.
 
 ## Documentation
 
