@@ -101,6 +101,7 @@ class TestCrossSectionReader:
         assert xs > 0
         assert 0.1 < xs < 20  # Typical range for lead
 
+    @needs_data
     def test_get_cross_section_capture(self, reader):
         """Test retrieving radiative capture XS (MT=102)"""
         xs = reader.get_cross_section(
@@ -111,6 +112,7 @@ class TestCrossSectionReader:
 
         assert xs >= 0  # Can be zero at high energies
 
+    @needs_data
     def test_cross_section_below_threshold(self, reader):
         """Test XS below reaction threshold returns zero"""
         xs = reader.get_cross_section(
@@ -147,6 +149,7 @@ class TestCrossSectionReader:
         assert reader.calculate_macroscopic_xs(-5.0, 1e22) == 0.0
         assert reader.calculate_macroscopic_xs(0.0, 1e22) == 0.0
 
+    @needs_data
     def test_get_cross_sections_wrapper(self, reader):
         """Test the convenience wrapper that returns all macroscopic XS.
 
@@ -154,7 +157,7 @@ class TestCrossSectionReader:
             get_cross_sections(element, energy, sampler, N, A)
             -> (Sigma_el, Sigma_in, Sigma_cap, Sigma_fis, Sigma_total)
         """
-        A = 207.2
+        A = 206.19   # Pb208 atomic-weight ratio
         mass = 208 * 1.674927471e-27
         sampler = VelocitySampler(mass=mass, temperature=294)
         N = 3.3e22
@@ -175,10 +178,14 @@ class TestCrossSectionReader:
         assert Sigma_f == 0
 
     def test_invalid_element(self, reader):
-        """A missing data file yields 0.0 (graceful), not an exception."""
-        xs = reader.get_cross_section(element="Xx999", mt=2, energy=1e6)
-        assert xs == 0.0
+        """A missing data file is an error, so a misspelt nuclide cannot act
+        like vacuum."""
+        with pytest.raises(FileNotFoundError, match="Xx999"):
+            reader.get_cross_section(element="Xx999", mt=2, energy=1e6)
+        with pytest.raises(FileNotFoundError, match="Pb-208"):
+            reader.get_cross_sections("Pb-208", 1e6, None, 3.3e22, 206.19)
 
+    @needs_data
     def test_invalid_mt_number(self, reader):
         """An MT number with no reaction in the data file returns 0.0 rather
         than raising — absent channels simply contribute nothing."""
@@ -230,7 +237,7 @@ class TestIntegrationMaterialsAndCrossSections:
         """Test mean free path calculation: λ = 1/Σ"""
         reader = CrossSectionReader("./endfb")
         lead = Material("Lead", density=11.35, atomic_mass=208,
-                        atomic_weight_ratio=207.2)
+                        atomic_weight_ratio=206.19)
 
         mass = 208 * 1.674927471e-27
         sampler = VelocitySampler(mass=mass)
@@ -250,7 +257,7 @@ class TestIntegrationMaterialsAndCrossSections:
         """Test that scattering probability is computed correctly"""
         reader = CrossSectionReader("./endfb")
         lead = Material("Lead", density=11.35, atomic_mass=208,
-                        atomic_weight_ratio=207.2)
+                        atomic_weight_ratio=206.19)
         mass = 208 * 1.674927471e-27
         sampler = VelocitySampler(mass=mass)
 
@@ -272,6 +279,7 @@ class TestIntegrationMaterialsAndCrossSections:
 class TestValidationBenchmarks:
     """Validation against known physics benchmarks"""
 
+    @needs_data
     @pytest.mark.slow
     def test_1_over_v_law_thermal(self):
         """Test that capture follows 1/v law at thermal energies"""

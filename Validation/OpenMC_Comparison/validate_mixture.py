@@ -19,14 +19,13 @@ mean escape energy 772,558 vs 771,890 eV, z=0.4; spectrum chi2/dof = 1.37.
 import argparse
 import os
 import sys
-from multiprocessing import Pool
 
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from _common import (ensure_openmc_data, energy_grid, compare_spectra,  # noqa: E402
-                     ratio_mean_uncertainty, N_BATCHES, _pyneut_spectrum)
+                     ratio_mean_uncertainty, N_BATCHES, run_scored)
 
 sys.path.insert(0, os.path.abspath(os.path.join(HERE, '..', '..')))
 from pyneut.cross_section_read import CrossSectionReader  # noqa: E402
@@ -35,8 +34,6 @@ from pyneut.medium import Region, Sphere  # noqa: E402
 from pyneut.vt_calc import VelocitySampler  # noqa: E402
 from pyneut.settings import Settings  # noqa: E402
 from pyneut.random_number_generator import RNGHandler  # noqa: E402
-from pyneut.simulation import simulate_single_particle  # noqa: E402
-from pyneut.statistics import escape_statistics  # noqa: E402
 
 ENDF = os.path.abspath(os.path.join(HERE, '..', '..', 'endfb'))
 
@@ -67,15 +64,7 @@ def run_pyneut_mixture(n):
     args = [(s, reader, mediums, 1.0, 1.0, dummy, None, False, r, settings)
             for s, r in zip(states, rngs)]
 
-    with Pool() as pool:
-        results = pool.map(simulate_single_particle, args)
-
-    leaked = np.array([r["final_weight"] for r in results], dtype=float)
-    esc = np.array([r["final_energy"] for r in results], dtype=float)
-    bins = energy_grid(SOURCE_E)
-    stats = escape_statistics(leaked, esc, n, N_BATCHES, e_bins=bins)
-    stats["spectrum"], stats["spectrum_sem"] = _pyneut_spectrum(leaked, esc, bins, N_BATCHES)
-    return stats
+    return run_scored(args, energy_grid(SOURCE_E), N_BATCHES)
 
 
 def run_openmc_mixture(n, batches=20):
@@ -143,7 +132,8 @@ def run_openmc_mixture(n, batches=20):
         os.chdir(cwd)
     return {"leakage": leak, "leakage_sem": leak_sem,
             "avg_energy": avg_e, "avg_energy_sem": avg_e_sem,
-            "spectrum": bin_w, "spectrum_sem": bin_sd}
+            "spectrum": bin_w, "spectrum_sem": bin_sd,
+            "n_particles": settings.particles * settings.batches}
 
 
 def _z(a, sa, b, sb):

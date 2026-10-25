@@ -34,6 +34,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(HERE, '..'))
 sys.path.insert(0, PROJECT_ROOT)
 
 from pyneut.cross_section_read import CrossSectionReader
+from pyneut.data import read_awr
 from pyneut.material import Material
 from pyneut.medium import Region, Box
 from pyneut.physics import elastic_scattering
@@ -54,12 +55,13 @@ def _verdict(z):
 # Benchmark 1 — uncollided exponential attenuation
 # ---------------------------------------------------------------------------
 
-def benchmark_attenuation(element='Pb208', rho=11.35, amu=208.0, A=207.2,
+def benchmark_attenuation(element='Pb208', rho=11.35, amu=208.0, A=None,
                           E=2.0e6, n_particles=40000):
     print('\n' + '=' * 70)
     print('  Benchmark 1: uncollided attenuation  T = exp(-Σ_t·d)')
     print('=' * 70)
     reader = CrossSectionReader(ENDF)
+    A = A or read_awr(ENDF, element)
     mat = Material(element, rho, amu, A)
     N = mat.number_density
     sampler = VelocitySampler(mat.kg_mass)

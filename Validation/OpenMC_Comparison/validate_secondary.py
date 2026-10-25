@@ -22,15 +22,18 @@ sys.path.insert(0, PROJECT_ROOT)
 import openmc.data
 
 from pyneut.cross_section_read import CrossSectionReader
+from pyneut.data import read_awr
 from pyneut.simulation import _emit_secondary_neutron
 from pyneut.random_number_generator import RNGHandler
 
 ENDF = os.path.join(PROJECT_ROOT, 'endfb')
 
+# (nuclide, incident energy); the atomic-weight ratio is read from the data,
+# since the CM->lab boost depends on it
 _CASES = [
-    ('Be9',   9.012,  14e6),
-    ('Fe56',  55.845, 14e6),
-    ('Pb208', 207.2,  14e6),
+    ('Be9',   14e6),
+    ('Fe56',  14e6),
+    ('Pb208', 14e6),
 ]
 _N = 40000
 
@@ -54,7 +57,8 @@ def run():
     print(f"\n  {'Iso':<7}{'frame':<6}{'node MeV':>8}{'<E> ref':>10}"
           f"{'<E> nat':>10}{'<E> lab':>10}{'chi2/dof':>11}")
     print('  ' + '-' * 70)
-    for iso, A, Ein in _CASES:
+    for iso, Ein in _CASES:
+        A = read_awr(ENDF, iso)
         n = openmc.data.IncidentNeutron.from_hdf5(os.path.join(ENDF, 'neutron', f'{iso}.h5'))
         rxn = n[16]
         frame = 'CM' if rxn.center_of_mass else 'lab'

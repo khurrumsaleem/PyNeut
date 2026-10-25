@@ -27,9 +27,8 @@ pip install -e ".[validation]"    # + openmc, matplotlib for Validation/OpenMC_C
 ```
 
 The ENDF/B-VIII.0 nuclear data is **not** in the repository, because it is
-large and publicly available. Download the OpenMC-format HDF5 files into
-`endfb/neutron/` as the README describes before you run transport or
-validation.
+large and publicly available. Fetch it with `python tools/fetch_data.py`
+(see the README) before you run transport or validation.
 
 ## Running the tests
 
@@ -39,7 +38,7 @@ From the repository root:
 pytest -q
 ```
 
-Without nuclear data, the 42 tests that read ENDF files skip and the rest run.
+Without nuclear data, the 47 tests that read ENDF files skip and the rest run.
 This is also what CI does. If you have the data, please run the full suite
 before opening a pull request, since the skipped tests cover the transport
 end to end. If you add

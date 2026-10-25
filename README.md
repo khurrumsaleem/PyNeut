@@ -62,16 +62,15 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
 | ICSBEP Godiva / Jezebel-23 / Jezebel | k_eff within **0.8σ** of the benchmark and **1.3σ** of OpenMC |
 | Bare U235 spheres, R = 6 / 8.7 / 11 cm, vs OpenMC eigenvalue mode | z = 1.5 / 2.0 / 2.2 |
 | BEAVRS pin cell, k∞ with matched physics (5 seeds per code) | **+72 ± 98 pcm**, z = 0.74 |
-| B10 + C12 mixture vs OpenMC | leakage within 0.1σ, escape energy within 0.4σ |
+| B10 + C12 mixture vs OpenMC | leakage within 0.1σ, escape energy within 0.2σ |
 | Analytic: Beer–Lambert attenuation, elastic [α,1] and ξ | 13 / 13 pass |
 | Cross-section reader vs `openmc.data` (elastic, capture, (n,2n), and the total) | identical (0.000 %) for every isotope |
 
-14 of the 16 spectrum shapes are GOOD, Al27 at 14 MeV is FAIR, and B10 at
-1 keV is the one POOR shape. Until October 2026 the total cross section left
-out reactions such as (n,np) and (n,nα), which made the 14 MeV Al27, O16 and
-Ni58 cases fail by 12–33σ on mean escape energy. Every reaction is now
-counted, as the [validation report](docs/index.md#reactions-above-5-mev)
-shows.
+All 16 spectrum shapes are GOOD as well. Until October 2026 the total cross
+section left out reactions such as (n,np) and (n,nα), which made the 14 MeV
+Al27, O16 and Ni58 cases fail by 12–33σ on mean escape energy. Every reaction
+is now counted, as the
+[validation report](docs/index.md#reactions-above-5-mev) shows.
 
 The [validation report](docs/index.md) has the full tables, the method, and
 the tally comparison against OpenMC.
@@ -97,16 +96,24 @@ installing it also provides a `pyneut` command.
 
 ### Nuclear data
 
-The ENDF/B-VIII.0 files are **not** in the repository. Download the OpenMC HDF5
-library from [openmc.org/data-libraries](https://openmc.org/data-libraries/)
-and put the `*.h5` files in `endfb/neutron/` (for example
-`endfb/neutron/Pb208.h5`). The fixed-source suite needs Al27, B10, Be9, C12,
-Cd112, Fe56, O16 and Pb208. The k-eigenvalue cases add U233/U234/U235/U238,
-Pu239/Pu240/Pu241 and Ga, and the pin cell needs its 36 nuclides.
+The ENDF/B-VIII.0 files are **not** in the repository. One script fetches
+the ones PyNeut uses from OpenMC's official HDF5 library
+([openmc.org/data-libraries](https://openmc.org/data-libraries/)) into
+`endfb/neutron/`:
 
-> Input files treat a missing nuclide file as an error. The low-level Python
-> API does not yet: there, a nuclide name with no matching file gets a zero
-> cross section, so check that the spelling matches the file name.
+```bash
+python tools/fetch_data.py                      # all 50 nuclides (~0.8 GB kept)
+python tools/fetch_data.py --set fixed-source   # or: keff, pincell
+python tools/fetch_data.py --verify             # check the files you have
+```
+
+It checks every file against the SHA-256 of the snapshot the committed
+validation results were produced with (`tools/endfb-viii.0.sha256`), so a
+match means your results should reproduce the tables. The 3.4 GB archive is
+streamed, and only the requested files are written.
+
+> A nuclide name with no matching file is an error, both in input files and
+> in the Python API, so a misspelt name cannot silently act as vacuum.
 
 ## Quick start
 
@@ -185,11 +192,11 @@ pyneut/                    the package
   cli.py                     the `pyneut` command (check, run)
   settings.py, tally.py, statistics.py, mesh.py, random_number_generator.py
 examples/                  input files for every validated case and every feature
-tests/                     pytest suite (42 tests need ENDF data and skip without it)
+tests/                     pytest suite (47 tests need ENDF data and skip without it)
 Validation/
   analytic_benchmarks.py     exact analytic checks, no OpenMC needed
   OpenMC_Comparison/         live PyNeut-vs-OpenMC suite, see its README
-tools/                     figure scripts (validation summary, geometry maps, spectra)
+tools/                     data fetch script, figure scripts (validation summary, geometry maps, spectra)
 docs/                      validation report, quick start, API reference, images
 Animation/                 Manim trajectory replay
 main.py                    end-to-end example with a mesh tally
@@ -233,8 +240,6 @@ The full list, with how each item shows up in the validation, is in
    detector tallies on the vector engine.
 5. **Physics.** S(α,β), multi-temperature data and a natural-abundance
    database.
-6. **Code hygiene.** Make the low-level cross-section reader raise an error
-   for a missing data file, as input files already do.
 
 ## Documentation
 

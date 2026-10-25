@@ -19,7 +19,7 @@ HAVE_DATA = os.path.exists(os.path.join(ENDF, "neutron", "Pb208.h5"))
 pytestmark = pytest.mark.skipif(not HAVE_DATA, reason="ENDF data not present")
 
 
-def _run(case_energy, geo, A=207.2, el="Pb208", rho=11.35, n=200, mode="shielding"):
+def _run(case_energy, geo, A=206.19, el="Pb208", rho=11.35, n=200, mode="shielding"):
     reader = CrossSectionReader(ENDF)
     mat = Material(el, rho, 208, A)
     N = mat.number_density
