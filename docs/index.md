@@ -73,30 +73,30 @@ directions. Source: `Validation/OpenMC_Comparison/validation_results.csv`.
 
 | Case | E | Regime | Leak z | E z | Integral | Spectrum (χ²/dof) |
 |------|--:|--------|------:|----:|:--------:|:-----------------:|
-| Pb208 sphere R=10 | 2 MeV | fast, elastic | 0.9 | 0.3 | OK | GOOD (0.90) |
-| Pb208 sphere R=10 | 5 MeV | fast | 1.1 | 0.1 | OK | GOOD (0.65) |
-| Pb208 sphere R=10 | 14 MeV | fast, (n,2n) | 0.4 | 0.6 | OK | GOOD (0.51) |
-| Fe56 slab, 4 thick | 14 MeV | fast, (n,xn) | 0.3 | 0.6 | OK | GOOD (0.44) |
+| Pb208 sphere R=10 | 2 MeV | fast, elastic | 0.9 | 0.3 | OK | GOOD (1.14) |
+| Pb208 sphere R=10 | 5 MeV | fast | 1.1 | 0.1 | OK | GOOD (0.63) |
+| Pb208 sphere R=10 | 14 MeV | fast, (n,2n) | 0.4 | 0.6 | OK | GOOD (0.49) |
+| Fe56 slab, 4 thick | 14 MeV | fast, (n,xn) | 0.3 | 0.6 | OK | GOOD (0.43) |
 | Fe56 sphere R=10 | 1 MeV | fast | 0.8 | 0.4 | OK | GOOD (1.0) |
-| Fe56 sphere R=15 | 25 keV | intermediate | 0.1 | 0.6 | OK | GOOD (0.85) |
+| Fe56 sphere R=15 | 25 keV | intermediate | 0.1 | 0.6 | OK | GOOD (0.67) |
 | Be9 sphere R=10 | 14 MeV | fast, (n,2n) | 0.9 | 0.1 | OK | GOOD (0.38) |
-| Al27 slab, 1 thick | 1 MeV | fast | 0.0 | 0.2 | OK | GOOD (0.76) |
-| Al27 slab, 10 thick | 14 MeV | fast, MT 5/22/28 | 0.3 | 0.6 | OK | FAIR (2.1) |
-| C12 cylinder R=10, height 20 | 2 MeV | fast | 0.0 | 0.4 | OK | GOOD (0.78) |
-| O16 sphere R=20 | 10 MeV | fast | 0.4 | 1.6 | OK | GOOD (1.0) |
-| O16 sphere R=15, liquid density | 14 MeV | fast, MT 22/28, (n,α) | 0.7 | 0.1 | OK | GOOD (1.9) |
-| Ni58 sphere R=5 | 14 MeV | fast, MT 28, (n,p) | 0.9 | 0.3 | OK | GOOD (0.77) |
-| B10 sphere R=1 | 1 keV | epithermal | 0.8 | 1.3 | OK | **POOR (15)** |
-| Cd112 sphere R=2 | 0.0253 eV | thermal | 0.7 | 0.3 | OK | GOOD (0.08) |
-| C12 sphere R=5 | 0.0253 eV | thermal | 1.2 | 0.4 | OK | GOOD (0.47) |
+| Al27 slab, 1 thick | 1 MeV | fast | 0.0 | 0.2 | OK | GOOD (0.64) |
+| Al27 slab, 10 thick | 14 MeV | fast, MT 5/22/28 | 0.3 | 0.6 | OK | GOOD (2.0) |
+| C12 cylinder R=10, height 20 | 2 MeV | fast | 0.0 | 0.4 | OK | GOOD (0.77) |
+| O16 sphere R=20 | 10 MeV | fast | 0.4 | 1.6 | OK | GOOD (0.71) |
+| O16 sphere R=15, liquid density | 14 MeV | fast, MT 22/28, (n,α) | 0.7 | 0.1 | OK | GOOD (1.8) |
+| Ni58 sphere R=5 | 14 MeV | fast, MT 28, (n,p) | 0.9 | 0.3 | OK | GOOD (0.69) |
+| B10 sphere R=1 | 1 keV | epithermal | 0.8 | 1.3 | OK | GOOD (0.68) |
+| Cd112 sphere R=2 | 0.0253 eV | thermal | 0.7 | 0.3 | OK | GOOD (0.06) |
+| C12 sphere R=5 | 0.0253 eV | thermal | 1.2 | 0.4 | OK | GOOD (0.26) |
 
-**16 OK, 0 warnings, 0 failures; 14 of 16 spectrum shapes GOOD, one FAIR,
-one POOR.** The table was regenerated on 2026-10-25 against OpenMC's official
+**16 OK, 0 warnings, 0 failures; all 16 spectrum shapes GOOD.** The table was regenerated on 2026-10-25 against OpenMC's official
 ENDF/B-VIII.0 HDF5 library, with per-neutron leakage spectra and with every
 reaction counted in the total cross section. The three 14 MeV rows for Al27,
 O16 and Ni58 were added to test that fix (see
 [Reactions above 5 MeV](#reactions-above-5-mev)), and the Fe56 slab is no
-longer a warning. The B10 row moved within its error bars in both codes
+longer a warning. The spectrum column uses the grading fixed for B10 below.
+The B10 row moved within its error bars in both codes
 relative to the earlier data snapshot, because that library's B10 file is
 not byte-identical to the earlier one.
 
@@ -125,7 +125,7 @@ failures (c12 was 86σ off) with a stationary-target kernel. After that fix a
 All three are fixed. OpenMC also runs free-gas here (no S(α,β)).
 
 **(n,2n) and the POOR spectrum shapes.** The two (n,2n) spheres agree on
-leakage and mean escape energy, but their spectrum shapes are POOR
+leakage and mean escape energy, but their spectrum shapes were POOR
 (χ²/dof 29 and 46). Fe56 at 14 MeV shows the same effect at lower strength
 (5.5). The single-collision emission
 itself has been checked against OpenMC point by point at the incident-energy
@@ -167,8 +167,23 @@ sampled independently, is withdrawn: the emission was right all along.
 The Fe56 slab's integral warning had a separate cause, the missing reactions
 described below.
 
-B10 at 1 keV is also POOR (15) without any (n,xn). B10 is a near-black
-absorber, so its leaked spectrum is sparse and noisy.
+**B10 at 1 keV was POOR (χ²/dof 15) because of the grading, not the
+physics.** OpenMC runs analog, so its leakage spectrum below about 0.6 keV,
+which takes two or more scatters in a near-black absorber to reach, was empty:
+0 ± 0 in eight of the twenty groups. PyNeut runs with implicit capture and
+resolves that tail at 1e-8 to 4e-5 per source neutron. Each empty group was
+scored as an exact zero, and those eight groups gave 235 of the χ² of 240. The
+tail PyNeut reports is worth 0.86 expected counts in OpenMC's 10 000
+histories, so OpenMC sees none of it 42 % of the time. In the eight groups
+where OpenMC has counts, χ²/dof was 0.66.
+
+The grader now follows Pearson's rule. Groups are merged until each holds at
+least five expected analog counts, and OpenMC's variance is never taken below
+the Poisson variance of that expectation (`compare_spectra` in
+`_common.py`). B10 is then GOOD (0.68). Every other case moved by at most
+0.33 in χ²/dof and kept its grade, apart from Al27 at 14 MeV going from 2.1
+(FAIR) to 2.0 (GOOD). A ±20 % tilt in a well-populated spectrum still grades
+POOR (`tests/test_spectrum_grading.py`).
 
 Each case's spectrum can be inspected directly. `run_all.py --plots` writes
 one panel per case to `images/cases/`:
@@ -198,7 +213,8 @@ OpenMC's to 1e-8 at every energy for every nuclide tested
 (`tests/test_reactions.py`).
 
 The three cases below were added for this. Each was run on the previous code
-and on the fixed code against the same live OpenMC result:
+and on the fixed code against the same live OpenMC result (χ²/dof as graded
+before the low-count fix below):
 
 | Case | Before: leak z / E z / χ²/dof | After: leak z / E z / χ²/dof |
 |------|--:|--:|
@@ -232,10 +248,11 @@ number densities in both codes, at N = 40 000:
 
 | Metric | OpenMC | PyNeut | z |
 |--------|-------:|-------:|--:|
-| leakage | 0.69090 ± 0.00280 | 0.69077 ± 0.00157 | 0.0 |
-| mean escape energy (eV) | 772 558 | 771 890 | 0.4 |
+| leakage | 0.67970 ± 0.00275 | 0.67931 ± 0.00171 | 0.1 |
+| mean escape energy (eV) | 766 009 ± 1 333 | 766 323 ± 1 087 | 0.2 |
 
-The spectrum shape is GOOD (χ²/dof = 1.4).
+The spectrum shape is GOOD (χ²/dof = 1.5). Both codes moved by the same
+amount from the earlier data snapshot.
 
 ---
 

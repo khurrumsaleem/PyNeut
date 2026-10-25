@@ -62,16 +62,15 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
 | ICSBEP Godiva / Jezebel-23 / Jezebel | k_eff within **0.8σ** of the benchmark and **1.3σ** of OpenMC |
 | Bare U235 spheres, R = 6 / 8.7 / 11 cm, vs OpenMC eigenvalue mode | z = 1.5 / 2.0 / 2.2 |
 | BEAVRS pin cell, k∞ with matched physics (5 seeds per code) | **+72 ± 98 pcm**, z = 0.74 |
-| B10 + C12 mixture vs OpenMC | leakage within 0.1σ, escape energy within 0.4σ |
+| B10 + C12 mixture vs OpenMC | leakage within 0.1σ, escape energy within 0.2σ |
 | Analytic: Beer–Lambert attenuation, elastic [α,1] and ξ | 13 / 13 pass |
 | Cross-section reader vs `openmc.data` (elastic, capture, (n,2n), and the total) | identical (0.000 %) for every isotope |
 
-14 of the 16 spectrum shapes are GOOD, Al27 at 14 MeV is FAIR, and B10 at
-1 keV is the one POOR shape. Until October 2026 the total cross section left
-out reactions such as (n,np) and (n,nα), which made the 14 MeV Al27, O16 and
-Ni58 cases fail by 12–33σ on mean escape energy. Every reaction is now
-counted, as the [validation report](docs/index.md#reactions-above-5-mev)
-shows.
+All 16 spectrum shapes are GOOD as well. Until October 2026 the total cross
+section left out reactions such as (n,np) and (n,nα), which made the 14 MeV
+Al27, O16 and Ni58 cases fail by 12–33σ on mean escape energy. Every reaction
+is now counted, as the
+[validation report](docs/index.md#reactions-above-5-mev) shows.
 
 The [validation report](docs/index.md) has the full tables, the method, and
 the tally comparison against OpenMC.

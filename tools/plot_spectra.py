@@ -22,8 +22,9 @@ import matplotlib.pyplot as plt
 def _coarse(values, sems, n_groups):
     """Sum a fine spectrum into ``n_groups`` groups, propagating the SEM.
 
-    The same grouping ``compare_spectra`` scores, so the figure and the
-    reported chi-square per degree of freedom describe the same histogram.
+    The grouping ``compare_spectra`` starts from, so the figure and the
+    reported chi-square per degree of freedom describe the same histogram
+    (the score then merges groups with too few analog counts to grade).
     """
     L = len(values)
     edges = np.linspace(0, L, n_groups + 1).astype(int)

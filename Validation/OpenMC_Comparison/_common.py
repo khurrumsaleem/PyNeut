@@ -211,12 +211,23 @@ def run_pyneut(case, n_particles=10000, n_batches=N_BATCHES):
         for s, r in zip(states, rngs)
     ]
 
-    # The leakage spectrum is scored per neutron as it leaks (pyneut.tallies),
-    # as OpenMC does. It used to be a histogram of each history's
-    # weight-averaged escape energy, which piles all of a history's leaked
-    # weight into one bin when (n,xn) makes it leak several neutrons: totals
-    # and mean energy stay exact, the spectrum shape does not.
-    e_bins = energy_grid(case['E'])
+    return run_scored(args, energy_grid(case['E']), n_batches)
+
+
+def run_scored(args, e_bins, n_batches=N_BATCHES):
+    """Run the histories in `args` in parallel and return their statistics.
+
+    `args` holds one simulate_single_particle tuple per history. The result
+    has the batch-means leakage and mean escape energy, the summed physics
+    counters, and the leakage spectrum on `e_bins`.
+
+    The leakage spectrum is scored per neutron as it leaks (pyneut.tallies),
+    as OpenMC does. It used to be a histogram of each history's
+    weight-averaged escape energy, which piles all of a history's leaked
+    weight into one bin when (n,xn) makes it leak several neutrons: totals
+    and mean energy stay exact, the spectrum shape does not.
+    """
+    n_particles = len(args)
     edges = batch_edges(n_particles, n_batches)
     hist_batch = np.searchsorted(edges, np.arange(n_particles), side='right') - 1
     cuts = np.linspace(0, n_particles, 8 * (os.cpu_count() or 1) + 1).astype(int)
@@ -234,7 +245,7 @@ def run_pyneut(case, n_particles=10000, n_batches=N_BATCHES):
     leaked_w = np.array([r['final_weight'] for r in results], dtype=float)
     esc_e = np.array([r['final_energy'] for r in results], dtype=float)
     stats = escape_statistics(leaked_w, esc_e, n_particles, n_batches,
-                              e_bins=energy_grid(case['E']))
+                              e_bins=e_bins)
 
     # Aggregate the secondary-sampling diagnostic counters across histories.
     counts = {}
@@ -243,8 +254,7 @@ def run_pyneut(case, n_particles=10000, n_batches=N_BATCHES):
             counts[k] = counts.get(k, 0) + v
     stats['physics_counts'] = counts
 
-    # Per-neutron leakage spectrum (same grid as OpenMC) for shape
-    # comparison, with batch-means per-bin uncertainties.
+    # Per-neutron leakage spectrum with batch-means per-bin uncertainties.
     leak = scorer.finalize(np.diff(edges))['leak']
     stats['spectrum'], stats['spectrum_sem'] = leak['mean'], leak['sem']
     return stats
@@ -385,6 +395,7 @@ def run_openmc(case, n_particles=10000, batches=20):
         'avg_energy_sem': avg_e_sem,
         'spectrum': bin_w,           # leakage current per source neutron, per bin
         'spectrum_sem': bin_sd,
+        'n_particles': settings.particles * settings.batches,   # analog histories
     }
 
 
@@ -402,7 +413,7 @@ _Z_OK   = 2.0
 _Z_WARN = 4.0
 
 
-def compare_spectra(omc, pyn, n_groups=20):
+def compare_spectra(omc, pyn, n_groups=20, min_counts=5.0):
     """
     Compare two leakage spectra (fine bins) by coarse-grouping and computing a
     chi-square goodness-of-fit of the *shape*:
@@ -411,6 +422,17 @@ def compare_spectra(omc, pyn, n_groups=20):
 
     over groups that carry signal.  Returns (chi2, ndof, chi2_per_dof) or
     (None, None, None) if either spectrum is missing.
+
+    OpenMC runs analog, so a group the spectrum barely reaches holds a handful
+    of counts, or none, and its batch standard error says nothing: an empty
+    group reads 0 +/- 0 even when about one count was expected. Scoring that
+    as a measurement made a deep tail PyNeut resolves with implicit capture
+    look like a 7-sigma disagreement. So, as in Pearson's test, groups are
+    merged with their neighbour (towards the source energy) until each holds
+    at least `min_counts` expected analog counts, using the larger of the two
+    codes' estimates; and OpenMC's variance is never taken below the Poisson
+    variance of that expectation, p/N. Both need omc['n_particles']; without
+    it the groups are scored as they are.
     """
     if omc is None or 'spectrum' not in omc or 'spectrum' not in pyn:
         return None, None, None
@@ -418,15 +440,31 @@ def compare_spectra(omc, pyn, n_groups=20):
     P, sP = np.asarray(pyn['spectrum']), np.asarray(pyn['spectrum_sem'])
     L = len(O)
     edges = np.linspace(0, L, n_groups + 1).astype(int)
+    groups = [(O[lo:hi].sum(), np.nansum(sO[lo:hi] ** 2),
+               P[lo:hi].sum(), np.nansum(sP[lo:hi] ** 2))
+              for lo, hi in zip(edges[:-1], edges[1:]) if hi > lo]
+
+    n_ref = omc.get('n_particles')
+    if n_ref:
+        merged, acc = [], np.zeros(4)
+        for g in groups:                      # low energy -> source energy
+            acc += g
+            if max(acc[0], acc[2]) * n_ref >= min_counts:
+                merged.append(acc)
+                acc = np.zeros(4)
+        if acc.any():                         # a short tail at the top end
+            if merged:
+                merged[-1] = merged[-1] + acc
+            else:
+                merged.append(acc)
+        groups = merged
 
     chi2 = 0.0
     ndof = 0
-    for lo, hi in zip(edges[:-1], edges[1:]):
-        if hi <= lo:
-            continue
-        Og = O[lo:hi].sum()
-        Pg = P[lo:hi].sum()
-        var = np.nansum(sO[lo:hi] ** 2) + np.nansum(sP[lo:hi] ** 2)
+    for Og, vO, Pg, vP in groups:
+        if n_ref:
+            vO = max(vO, max(Og, Pg) / n_ref)
+        var = vO + vP
         # Only score groups that carry signal and have a usable variance.
         if var <= 0 or (Og + Pg) <= 0:
             continue
