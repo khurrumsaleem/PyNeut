@@ -71,8 +71,42 @@ def _resample(sites, target, rng):
     return [dict(sites[i]) for i in idx]
 
 
+def _tallied_chunk(task):
+    """Run a slice of one generation's histories with their own Scorer."""
+    from .tallies import Scorer
+    args, defs, n_batches, batch, active = task
+    scorer = Scorer(defs, n_batches)
+    scorer.batch, scorer.active = batch, active
+    results = [simulate_single_particle(a + (scorer,)) for a in args]
+    return results, scorer.state()
+
+
+def _run_generation(args, pool, scorer, batch, active):
+    if scorer is None:
+        if pool is not None:
+            return pool.map(simulate_single_particle, args)
+        return [simulate_single_particle(a) for a in args]
+    if pool is None:
+        scorer.batch, scorer.active = batch, active
+        results = [simulate_single_particle(a + (scorer,)) for a in args]
+        scorer.active = True
+        return results
+    # one Scorer per chunk in the workers, merged here; chunk order keeps
+    # the per-history results in source order
+    n_chunks = max(1, min(len(args), 4 * (getattr(pool, "_processes", None) or 1)))
+    bounds = np.linspace(0, len(args), n_chunks + 1).astype(int)
+    tasks = [(args[lo:hi], scorer.defs, scorer.n_batches, batch, active)
+             for lo, hi in zip(bounds[:-1], bounds[1:]) if hi > lo]
+    results = []
+    for res, state in pool.map(_tallied_chunk, tasks):
+        results.extend(res)
+        scorer.merge(state)
+    return results
+
+
 def run_keff(reader, mediums, initial_source, A, N, sampler, settings,
-             generations=50, inactive=10, seed=1, pool=None, verbose=False):
+             generations=50, inactive=10, seed=1, pool=None, verbose=False,
+             scorer=None):
     """Estimate k_eff by fission-source iteration.
 
     Parameters mirror the fixed-source call (reader, mediums, A, N, sampler,
@@ -83,6 +117,9 @@ def run_keff(reader, mediums, initial_source, A, N, sampler, settings,
     Per-generation progress goes to the `pyneut.criticality` logger: at INFO when
     `verbose` is set, at DEBUG otherwise. Enable it with, for example,
     `logging.basicConfig(level=logging.INFO)`.
+
+    `scorer` (a tallies.Scorer with one batch per active generation) tallies
+    the active generations; batch b is active generation b.
 
     Returns a dict: k_eff/k_sem (collision estimator), k_source/k_source_sem
     (source estimator), active_k (per-active-generation collision k), and
@@ -105,10 +142,8 @@ def run_keff(reader, mediums, initial_source, A, N, sampler, settings,
         args = [(s, reader, mediums, A, N, sampler, None, False, r, settings)
                 for s, r in zip(source, rngs)]
 
-        if pool is not None:
-            results = pool.map(simulate_single_particle, args)
-        else:
-            results = [simulate_single_particle(a) for a in args]
+        results = _run_generation(args, pool, scorer, max(0, gen - inactive),
+                                  gen >= inactive)
 
         new_sites = []
         production = 0.0

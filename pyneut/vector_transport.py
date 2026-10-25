@@ -827,7 +827,7 @@ def _lane_xs(reader, vxs, E, rng):
 
 
 def run_transport(reader, mediums, source, rng, settings, legacy=None,
-                  fission_bank=None, max_events=1_000_000):
+                  fission_bank=None, max_events=1_000_000, scorer=None):
     """Vectorized fixed-source transport, survival-biased or analog.
 
     In survival-biased (shielding) mode: implicit capture with weight-cutoff
@@ -843,6 +843,10 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
     and children sample through the scalar SecondaryDistribution readers per
     lane. Cross-section lookups include the sub-10 eV Doppler elastic shift
     and URR probability-table self-shielding.
+
+    `scorer`, if given, is a tallies.Scorer told of every flight segment,
+    collision, absorption and leak, keyed by source-history index (it draws
+    no random numbers, so results are unchanged).
 
     Returns per-source-history leaked weight / escape energy arrays (feed to
     statistics.escape_statistics), total absorbed weight, and counters.
@@ -887,6 +891,8 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
         out = midx < 0
         if out.any():
             g = idx[out]
+            if scorer is not None:
+                scorer.leak(hist[g], x[g], y[g], z[g], E[g], wgt[g])
             np.add.at(leaked_w, hist[g], wgt[g])
             np.add.at(leaked_Ew, hist[g], E[g] * wgt[g])
             alive[g] = False
@@ -902,6 +908,8 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
         no_cross = ~np.isfinite(dist)
         if no_cross.any():
             g = idx[no_cross]
+            if scorer is not None:
+                scorer.leak(hist[g], x[g], y[g], z[g], E[g], wgt[g])
             np.add.at(leaked_w, hist[g], wgt[g])
             np.add.at(leaked_Ew, hist[g], E[g] * wgt[g])
             alive[g] = False
@@ -930,6 +938,11 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
         live = ~no_cross
         crosses = live & (si > dist)
         collides = live & ~crosses
+
+        if scorer is not None and scorer.wants("track") and live.any():
+            lv = np.nonzero(live)[0]
+            gl = idx[lv]
+            scorer.track(hist[gl], midx[lv], np.minimum(si[lv], dist[lv]), E[gl], wgt[gl])
 
         if crosses.any():
             c = np.nonzero(crosses)[0]
@@ -964,6 +977,8 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
             el, inl, cap, fis = (a[:, cols].copy() for a in group[m_i])
             Ssc = el.sum(axis=0) + inl.sum(axis=0)
             St = Ssc + cap.sum(axis=0) + fis.sum(axis=0)
+            if scorer is not None:
+                scorer.collision(hist[g], m_i, x[g], y[g], z[g], E[g], wgt[g], St)
 
             # collision estimator of fission production (criticality):
             # every collision contributes w * sum_i nu_i Sigma_f,i / Sigma_t
@@ -1004,6 +1019,9 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
                 ab = ~scat
                 if ab.any():
                     gab = g[ab]
+                    if scorer is not None:
+                        scorer.absorb(hist[gab], m_i, x[gab], y[gab], z[gab],
+                                      E[gab], wgt[gab])
                     if fission_bank is not None:
                         sfa, sca = s_fis[ab], s_cap[ab]
                         den = sfa + sca
@@ -1063,6 +1081,9 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
                     Ssc, St = Ssc[surv], St[surv]
 
                 p_scatter = np.where(St > 0, Ssc / St, 1.0)
+                if scorer is not None:
+                    scorer.absorb(hist[g], m_i, x[g], y[g], z[g], E[g],
+                                  wgt[g] * (1.0 - p_scatter))
                 absorbed += float((wgt[g] * (1.0 - p_scatter)).sum())
                 wgt[g] = wgt[g] * p_scatter
                 dead = wgt[g] <= 0
@@ -1233,7 +1254,7 @@ def run_transport(reader, mediums, source, rng, settings, legacy=None,
 
 
 def run_keff_vector(reader, mediums, initial_source, settings,
-                    generations=50, inactive=10, seed=1):
+                    generations=50, inactive=10, seed=1, scorer=None):
     """k-eigenvalue power iteration on the vector engine, mirroring
     criticality.run_keff: each generation transports its source bank in
     analog mode with a fission bank; the bank is resampled to the nominal
@@ -1242,6 +1263,9 @@ def run_keff_vector(reader, mediums, initial_source, settings,
 
     initial_source: dict of arrays (x, y, z, u, v, w, energy). Returns the
     same dict shape as the scalar run_keff.
+
+    `scorer` (a tallies.Scorer with one batch per active generation) tallies
+    the active generations; batch b is active generation b.
     """
     from .statistics import mean_sem
 
@@ -1256,8 +1280,11 @@ def run_keff_vector(reader, mediums, initial_source, settings,
     active_col, active_src = [], []
     for gen in range(generations):
         bank = []
+        if scorer is not None:
+            scorer.active = gen >= inactive
+            scorer.set_batches(np.full(gen_size, max(0, gen - inactive)))
         res = run_transport(reader, mediums, src, rng, settings,
-                            fission_bank=bank)
+                            fission_bank=bank, scorer=scorer)
         production = res["counters"].get("fission_production", 0.0)
         if bank:
             bx, by, bz, bu, bv, bw, bE = (np.concatenate(a) for a in zip(*bank))
@@ -1335,15 +1362,24 @@ def _merge_fixed_source(results, src_weight_total):
 
 
 def _fixed_source_worker(args):
-    mediums, chunk, settings, seed, legacy = args
+    mediums, chunk, settings, seed, legacy, tally_spec = args
     reader = _WORKER["reader"]
-    return run_transport(reader, mediums, chunk, np.random.default_rng(seed),
-                         settings, legacy=legacy)
+    scorer = None
+    if tally_spec is not None:
+        from .tallies import Scorer
+        defs, n_batches, hist_batch = tally_spec
+        scorer = Scorer(defs, n_batches)
+        scorer.set_batches(hist_batch)
+    res = run_transport(reader, mediums, chunk, np.random.default_rng(seed),
+                        settings, legacy=legacy, scorer=scorer)
+    if scorer is not None:
+        res["scorer_state"] = scorer.state()
+    return res
 
 
 def run_transport_parallel(base_path, mediums, source, settings,
                            n_workers=None, seed=0, temperature="294K",
-                           legacy=None):
+                           legacy=None, scorer=None):
     """Fixed-source transport split across processes, one bank chunk per core.
 
     ``base_path`` is the ENDF directory (each worker builds its own reader).
@@ -1352,6 +1388,10 @@ def run_transport_parallel(base_path, mediums, source, settings,
     and merged in order, so the result matches a serial ``run_transport`` in
     the mean with valid batch-means statistics. Independent per-worker RNG
     comes from ``SeedSequence(seed).spawn``.
+
+    ``scorer`` is a tallies.Scorer whose ``hist_batch`` covers all N
+    histories; each worker scores its chunk and the totals are merged back
+    into it.
     """
     import multiprocessing as mp
 
@@ -1366,7 +1406,9 @@ def run_transport_parallel(base_path, mediums, source, settings,
     args = []
     for sl, sd in zip(splits, seeds):
         chunk = {k: np.asarray(v, dtype=float)[sl] for k, v in source.items()}
-        args.append((mediums, chunk, settings, sd, legacy))
+        spec = (None if scorer is None
+                else (scorer.defs, scorer.n_batches, scorer.hist_batch[sl]))
+        args.append((mediums, chunk, settings, sd, legacy, spec))
 
     if n_workers == 1:
         _init_worker(base_path, temperature)
@@ -1375,6 +1417,9 @@ def run_transport_parallel(base_path, mediums, source, settings,
         with mp.Pool(n_workers, initializer=_init_worker,
                      initargs=(base_path, temperature)) as pool:
             results = pool.map(_fixed_source_worker, args)
+    if scorer is not None:
+        for r in results:
+            scorer.merge(r.pop("scorer_state"))
     return _merge_fixed_source(results, src_weight_total)
 
 
