@@ -1,0 +1,33 @@
+# A 5 cm aluminium plate tilted 45 degrees about z, hit by a beam along x.
+#
+# Shows: general planes. A plane is {normal = [a, b, c], offset = d}, and
+# '-name' is the side where a*x + b*y + c*z <= d. The normal need not be a
+# unit vector.
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 25
+
+[materials.aluminium]
+density  = 2.70
+nuclides = { Al27 = 1.0 }
+
+# |x + y| / sqrt(2) <= 2.5 is a plate 5 cm thick, tilted 45 degrees
+[surfaces]
+front = { type = "plane", normal = [1, 1, 0], offset = 3.5355339 }
+back  = { type = "plane", normal = [-1, -1, 0], offset = 3.5355339 }
+world = { type = "box", min = [-30, -30, -30], max = [30, 30, 30] }
+
+[cells]
+plate = { region = "-front & -back & -world",   material = "aluminium" }
+air   = { region = "-world & ~(-front & -back)", material = "void" }
+
+[source]
+space     = { type = "point", xyz = [-20, 0, 0] }
+direction = { type = "beam", direction = [1, 0, 0] }
+energy    = "1 MeV"
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["10 keV", "1.01 MeV", 40] }

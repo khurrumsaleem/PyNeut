@@ -8,7 +8,7 @@ setup(
     license="MIT",
     packages=["pyneut"],
     python_requires=">=3.10",
-    install_requires=["numpy", "h5py"],
+    install_requires=["numpy", "h5py", "tomli; python_version < '3.11'"],
     extras_require={
         "test": ["pytest", "trimesh", "rtree"],
         "validation": ["openmc", "matplotlib"],

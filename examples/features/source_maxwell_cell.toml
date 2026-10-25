@@ -1,0 +1,41 @@
+# Neutrons born uniformly inside one cell -- a spherical shell -- with a
+# Maxwellian spectrum (kT = 1.3 MeV, close to a fission spectrum).
+#
+# Shows: the 'cell' space (sampled by rejection inside 'bounds', which must
+# enclose the cell) and the 'maxwell' energy distribution.
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 23
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[materials.iron]
+density  = 7.87
+nuclides = { Fe56 = 1.0 }
+
+[surfaces]
+inner = { type = "sphere", center = [0, 0, 0], radius = 5 }
+outer = { type = "sphere", center = [0, 0, 0], radius = 8 }
+skin  = { type = "sphere", center = [0, 0, 0], radius = 12 }
+
+[cells]
+core   = { region = "-inner",          material = "iron" }
+shell  = { region = "+inner & -outer", material = "lead" }
+jacket = { region = "+outer & -skin",  material = "iron" }
+
+[source]
+direction = "isotropic"
+energy    = { type = "maxwell", kT = "1.3 MeV" }
+
+[source.space]
+type   = "cell"
+cell   = "shell"
+bounds = { min = [-8, -8, -8], max = [8, 8, 8] }
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["10 keV", "20 MeV", 60] }

@@ -1,0 +1,28 @@
+# A source with two energy lines, like a fusion neutron generator running a
+# DD/DT mix: 2.45 MeV (70 %) and 14.1 MeV (30 %), in an iron sphere.
+#
+# Shows: the 'discrete' energy distribution (probabilities need not sum to 1).
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 22
+
+[materials.iron]
+density  = 7.87
+nuclides = { Fe56 = 1.0 }
+
+[surfaces]
+shell = { type = "sphere", center = [0, 0, 0], radius = 15 }
+
+[cells]
+iron = { region = "-shell", material = "iron" }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = { type = "discrete", energies = ["2.45 MeV", "14.1 MeV"], probabilities = [0.7, 0.3] }
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["10 keV", "15 MeV", 60] }

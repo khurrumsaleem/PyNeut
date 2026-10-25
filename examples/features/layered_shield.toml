@@ -1,0 +1,46 @@
+# A 14 MeV source in a spherical cavity, shielded by iron, then lead, then a
+# B4C-like absorber made with B10.
+#
+# Shows: several materials, concentric shells written with '+inner & -outer',
+# and a logarithmic leakage spectrum.
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 5
+
+[materials.iron]
+density  = 7.87
+nuclides = { Fe56 = 1.0 }
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[materials.b4c]
+density  = 2.52
+nuclides = { B10 = 4, C12 = 1 }      # atom fractions, normalised for you
+
+[surfaces]
+cavity = { type = "sphere", center = [0, 0, 0], radius = 2 }
+r_iron = { type = "sphere", center = [0, 0, 0], radius = 10 }
+r_lead = { type = "sphere", center = [0, 0, 0], radius = 15 }
+r_b4c  = { type = "sphere", center = [0, 0, 0], radius = 17 }
+
+[cells]
+cavity = { region = "-cavity",           material = "void" }
+iron   = { region = "+cavity & -r_iron", material = "iron" }
+lead   = { region = "+r_iron & -r_lead", material = "lead" }
+b4c    = { region = "+r_lead & -r_b4c",  material = "b4c" }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "14.1 MeV"
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["1 eV", "15 MeV", 70] }
+
+[tallies.absorbed]
+type = "absorption"

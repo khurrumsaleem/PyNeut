@@ -1,0 +1,32 @@
+# Validation case fe56_sphere_25kev: Fe56 sphere, R = 15 cm.
+# Point source of 25 keV neutrons at the centre (intermediate, resolved resonances).
+# Mirrors Validation/OpenMC_Comparison (see docs/index.md for the OpenMC
+# comparison). The reference table was produced with the scalar engine:
+#   pyneut run fe56_sphere_25kev.toml --engine scalar
+# The spectrum bins match the suite's energy_grid(): 500 linear bins to
+# max(1.01 E, 1 eV).
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+batches   = 20
+seed      = 12345
+
+[materials.target]
+density  = 7.87                  # g/cm3
+nuclides = { Fe56 = 1.0 }
+
+[surfaces]
+shell = { type = "sphere", center = [0, 0, 0], radius = 15.0 }
+
+[cells]
+target = { region = "-shell", material = "target" }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "25 keV"
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { lin = [0.0, 25250, 500] }

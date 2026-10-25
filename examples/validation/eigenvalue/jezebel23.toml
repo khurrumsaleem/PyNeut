@@ -1,0 +1,27 @@
+# Jezebel-23, U233-MET-FAST-001: a bare sphere of U233 metal, R = 5.9838 cm.
+# ICSBEP critical benchmark, published k_eff = 1.0000. Same model as
+# Validation/OpenMC_Comparison/validate_keff.py --benchmarks.
+
+[run]
+mode        = "eigenvalue"
+particles   = 3000
+generations = 120
+inactive    = 30
+seed        = 1
+
+[materials.core.atom_densities]        # atoms/b-cm
+U233  = 4.6655e-2
+U234  = 5.9170e-4
+U235  = 1.4250e-4
+U238  = 2.9280e-4
+
+[surfaces]
+surface = { type = "sphere", center = [0, 0, 0], radius = 5.9838 }
+
+[cells]
+core = { region = "-surface", material = "core" }
+
+[source]
+space     = { type = "sphere", center = [0, 0, 0], radius = 5.9838 }
+direction = "isotropic"
+energy    = { type = "watt", nuclide = "U233" }

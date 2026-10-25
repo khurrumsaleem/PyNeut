@@ -1,0 +1,32 @@
+# Validation case al27_slab_1mev: Al27 slab, 1 cm thick (x from -0.5 to 0.5), 100 x 100 cm face.
+# Point source of 1 MeV neutrons at the centre (fast, 1 cm slab).
+# Mirrors Validation/OpenMC_Comparison (see docs/index.md for the OpenMC
+# comparison). The reference table was produced with the scalar engine:
+#   pyneut run al27_slab_1mev.toml --engine scalar
+# The spectrum bins match the suite's energy_grid(): 500 linear bins to
+# max(1.01 E, 1 eV).
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+batches   = 20
+seed      = 12345
+
+[materials.target]
+density  = 2.7                  # g/cm3
+nuclides = { Al27 = 1.0 }
+
+[surfaces]
+slab = { type = "box", min = [-0.5, -50.0, -50.0], max = [0.5, 50.0, 50.0] }
+
+[cells]
+target = { region = "-slab", material = "target" }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "1 MeV"
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { lin = [0.0, 1.01e+06, 500] }

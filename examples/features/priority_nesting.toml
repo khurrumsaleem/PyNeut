@@ -1,0 +1,45 @@
+# The layered shield of layered_shield.toml, written with priorities instead
+# of subtracting each shell from the next.
+#
+# Shows: overlapping cells resolved by 'priority' (the higher one wins where
+# cells overlap). Without priorities `pyneut check` reports these overlaps as
+# errors; explicit regions (layered_shield.toml) are usually clearer, but
+# nesting is convenient for deep stacks.
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 5
+
+[materials.iron]
+density  = 7.87
+nuclides = { Fe56 = 1.0 }
+
+[materials.lead]
+density  = 11.35
+nuclides = { Pb208 = 1.0 }
+
+[materials.b4c]
+density  = 2.52
+nuclides = { B10 = 4, C12 = 1 }
+
+[surfaces]
+cavity = { type = "sphere", center = [0, 0, 0], radius = 2 }
+r_iron = { type = "sphere", center = [0, 0, 0], radius = 10 }
+r_lead = { type = "sphere", center = [0, 0, 0], radius = 15 }
+r_b4c  = { type = "sphere", center = [0, 0, 0], radius = 17 }
+
+[cells]
+cavity = { region = "-cavity", material = "void", priority = 4 }
+iron   = { region = "-r_iron", material = "iron", priority = 3 }
+lead   = { region = "-r_lead", material = "lead", priority = 2 }
+b4c    = { region = "-r_b4c",  material = "b4c",  priority = 1 }
+
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "14.1 MeV"
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["1 eV", "15 MeV", 70] }

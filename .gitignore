@@ -9,7 +9,8 @@ build/
 # file generated from it (machine-specific absolute paths)
 endfb/
 
-# Outputs written by main.py and the docs examples
+# Outputs written by main.py, the docs examples and `pyneut run`
+*_results/
 all_trajectories.json
 *.vtk
 

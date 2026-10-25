@@ -1,0 +1,28 @@
+# A volume source: neutrons born uniformly inside a box at the centre of a
+# graphite block, with energies uniform between 1 and 2 MeV.
+#
+# Shows: the 'box' space and 'uniform' energy distributions.
+
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 21
+
+[materials.graphite]
+density  = 1.70
+nuclides = { C12 = 1.0 }
+
+[surfaces]
+block = { type = "box", min = [-20, -20, -20], max = [20, 20, 20] }
+
+[cells]
+graphite = { region = "-block", material = "graphite" }
+
+[source]
+space     = { type = "box", min = [-2, -2, -2], max = [2, 2, 2] }
+direction = "isotropic"
+energy    = { type = "uniform", min = "1 MeV", max = "2 MeV" }
+
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["1 keV", "2 MeV", 60] }
