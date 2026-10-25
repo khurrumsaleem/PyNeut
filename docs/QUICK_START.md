@@ -1,4 +1,11 @@
-# Quick Start
+# Quick Start: the Python API
+
+> **Most calculations don't need Python.** A TOML input file describes the
+> whole model, and `pyneut run model.toml` solves it. See the
+> [input format reference](input-format.md) and the
+> [examples](../examples/README.md); most examples below have an input-file
+> twin there. This guide covers the low-level Python API that input files are
+> built on. Use it to script something the input format can't express yet.
 
 Worked examples, from a single shielding run up to k-eigenvalue and the vector
 engine. Every example is a complete script. Run it from the repository root

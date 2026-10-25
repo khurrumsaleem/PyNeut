@@ -26,6 +26,11 @@ OpenMC, against analytic results and against ICSBEP critical benchmarks.
   continuum and (n,2n)/(n,3n) emission through ENDF Law 61 / Kalbach–Mann.
   Capture, unresolved-resonance probability tables, and fission with ν̄ and a
   Watt spectrum.
+- **Input files:** a whole calculation is one TOML file: materials, geometry
+  written as region expressions (`"-outer & -top & +bottom"`), source
+  distributions, tallies and run settings. `pyneut check` validates it and
+  `pyneut run` solves it, recording the input, code and data that produced
+  the result.
 - **Problems:** fixed-source shielding (analog, or implicit capture with Russian
   roulette) and k-eigenvalue by fission-source power iteration.
 - **Geometry:** constructive solid geometry from planes, spheres, axis-aligned
@@ -87,65 +92,66 @@ and put the `*.h5` files in `endfb/neutron/` (for example
 Cd112, Fe56, O16 and Pb208. The k-eigenvalue cases add U233/U234/U235/U238,
 Pu239/Pu240/Pu241 and Ga, and the pin cell needs its 36 nuclides.
 
-> A nuclide name with no matching file gets a zero cross section, and no error
-> is raised. Check that the spelling matches the file name.
+> Input files treat a missing nuclide file as an error. The low-level Python
+> API does not yet: there, a nuclide name with no matching file gets a zero
+> cross section, so check that the spelling matches the file name.
 
 ## Quick start
 
-A 2 MeV isotropic point source at the centre of a 10 cm Pb208 sphere:
+A model is one TOML file. This is a 2 MeV point source at the centre of a
+10 cm Pb208 sphere:
 
-```python
-import numpy as np
-from multiprocessing import Pool
+```toml
+# pb_sphere.toml
+[run]
+mode      = "fixed-source"
+particles = 10_000
+seed      = 12345
 
-from pyneut.cross_section_read import CrossSectionReader
-from pyneut.material import Material, NEUTRON_MASS_AMU
-from pyneut.medium import Region, Sphere
-from pyneut.random_number_generator import RNGHandler
-from pyneut.settings import Settings
-from pyneut.simulation import simulate_single_particle
-from pyneut.tally import Tally
-from pyneut.vt_calc import VelocitySampler
+[materials.lead]
+density  = 11.35                 # g/cm3; the AWR is read from Pb208.h5
+nuclides = { Pb208 = 1.0 }
 
-AWR = 206.190  # Pb208 atomic-weight ratio (target mass / neutron mass), from the data file
+[surfaces]
+shell = { type = "sphere", center = [0, 0, 0], radius = 10.0 }
 
-if __name__ == "__main__":
-    reader = CrossSectionReader("./endfb")
-    lead = Material("Pb208", density=11.35,
-                    atomic_mass=AWR * NEUTRON_MASS_AMU, atomic_weight_ratio=AWR)
-    sampler = VelocitySampler(lead.kg_mass)
+[cells]
+shield = { region = "-shell", material = "lead" }
 
-    regions = [Region(surfaces=[Sphere((0, 0, 0), 10.0)],
-                      name="Lead", priority=1, element="Pb208")]
+[source]
+space     = { type = "point", xyz = [0, 0, 0] }
+direction = "isotropic"
+energy    = "2 MeV"
 
-    settings = Settings(mode="shielding", particles=10_000)   # implicit capture
-    n = settings.num_particles
-    rngs = [RNGHandler(seed=12345 + i) for i in range(n)]
-
-    # theta is the polar angle from +z; arccos(1 - 2ξ) makes the source isotropic
-    states = [{"x": 0.0, "y": 0.0, "z": 0.0,
-               "theta": np.arccos(1 - 2 * r.random()),
-               "phi": r.uniform(0, 2 * np.pi),
-               "energy": 2.0e6,          # eV
-               "weight": 1.0,
-               "has_interacted": False} for r in rngs]
-
-    # simulate_single_particle takes one 10-tuple per source neutron
-    args = [(s, reader, regions, lead.atomic_weight_ratio, lead.number_density,
-             sampler, None, False, r, settings) for s, r in zip(states, rngs)]
-
-    with Pool() as pool:
-        results = pool.map(simulate_single_particle, args)
-
-    tally = Tally()
-    for res in results:
-        tally.merge_partial_results(res)
-    tally.print_summary(n)          # leakage and mean escape energy, ± batch-means σ
+[tallies.leakage]
+type        = "leakage"
+energy_bins = { log = ["1 keV", "2.1 MeV", 60] }
 ```
 
-The [Quick Start guide](docs/QUICK_START.md) covers slabs and detectors, mesh
-tallies, material mixtures, reflective boundaries, k-eigenvalue and the vector
-engine. `main.py` is a complete mesh-tally run.
+```bash
+pyneut check pb_sphere.toml    # validates the input, data, source and geometry
+pyneut run   pb_sphere.toml    # solves; writes pb_sphere_results/results.json
+```
+
+`results.json` holds every tally with its standard errors, plus the
+provenance of the run: the input's hash, the code version and git commit,
+and a fingerprint of the nuclear data. The same model from Python:
+
+```python
+from pyneut.model import Model
+
+model = Model.from_toml("pb_sphere.toml")
+model.run.engine = "scalar"            # override anything before solving
+results = model.solve()
+print(results.summary())
+```
+
+- [`examples/`](examples/README.md) has an input for every validated case
+  (all 13 fixed-source cases, Godiva, Jezebel, Jezebel-23, the U235 spheres
+  and the BEAVRS pin cell) and one for each feature.
+- The [input format reference](docs/input-format.md) documents every key.
+- The [Quick Start guide](docs/QUICK_START.md) covers the low-level Python
+  API underneath.
 
 ## Repository layout
 
@@ -161,8 +167,12 @@ pyneut/                    the package
   simulation.py              one-neutron-at-a-time transport kernel (reference engine)
   vector_transport.py        event-based NumPy engine + multiprocessing wrappers
   criticality.py             k-eigenvalue power iteration (scalar engine)
+  model.py                   TOML input: Model, validation, solve, results
+  regions.py, sources.py     region-expression parser, source distributions
+  cli.py                     the `pyneut` command (check, run)
   settings.py, tally.py, statistics.py, mesh.py, random_number_generator.py
-tests/                     pytest suite (165 tests; 36 need ENDF data and skip without it)
+examples/                  input files for every validated case and every feature
+tests/                     pytest suite (36 tests need ENDF data and skip without it)
 Validation/
   analytic_benchmarks.py     exact analytic checks, no OpenMC needed
   OpenMC_Comparison/         live PyNeut-vs-OpenMC suite, see its README
@@ -206,20 +216,21 @@ The full list, with how each item shows up in the validation, is in
    subset so the benchmarks run without the full library.
 3. **Performance.** The vector engine is done. A Numba-compiled kernel is in
    progress on the `numba-experiment` branch.
-4. **Physics.** Energy-correlated (n,xn) multiplicity, S(α,β), multi-temperature
-   data, a track-length estimator, built-in source samplers and a
-   natural-abundance database.
-5. **Code hygiene.**
-   - Replace the 10-element argument tuple with a dataclass.
-   - Keep the element-alias map in one place.
-   - Raise an error when a nuclide's data file is missing, instead of returning
-     zero.
+4. **Tallies (issue #6).** A scoring interface in both engines, so tallies
+   can be filtered by cell, mesh and energy on either engine, plus a flux
+   tally. See the [design](docs/design/input-format.md).
+5. **Physics.** Energy-correlated (n,xn) multiplicity, S(α,β), multi-temperature
+   data, a track-length estimator and a natural-abundance database.
+6. **Code hygiene.** Keep the element-alias map in one place, and make the
+   low-level cross-section reader raise an error for a missing data file, as
+   input files already do.
 
 ## Documentation
 
 - [Validation report](docs/index.md): method, every result table, physics
   models, limitations
-- [Quick Start](docs/QUICK_START.md): worked examples
+- [Input format reference](docs/input-format.md) and [examples](examples/README.md)
+- [Quick Start](docs/QUICK_START.md): the low-level Python API, with worked examples
 - [API reference](docs/api-reference.md)
 - [Validation suite guide](Validation/OpenMC_Comparison/README.md)
 - [Contributing](CONTRIBUTING.md)

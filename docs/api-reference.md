@@ -10,13 +10,70 @@ The public interface of the `pyneut` package, which you import as
 throughout. The [Quick Start](QUICK_START.md) shows these pieces working
 together.
 
-**Modules:** [material](#material) · [medium](#medium) ·
+**Modules:** [model](#model) · [material](#material) · [medium](#medium) ·
 [cross_section_read](#cross_section_read) · [settings](#settings) ·
 [simulation](#simulation) · [tally](#tally) · [statistics](#statistics) ·
 [mesh](#mesh) · [criticality](#criticality) ·
 [vector_transport](#vector_transport) · [physics](#physics) ·
 [vt_calc](#vt_calc) · [geometry](#geometry) ·
 [random_number_generator](#random_number_generator)
+
+---
+
+## model
+
+Input files and the objects they become. The format itself is documented in
+[input-format.md](input-format.md).
+
+### `Model.from_toml(path)` / `Model.from_dict(spec, base_dir=".")`
+
+These parse and validate a model. Every problem is collected into one
+`pyneut.errors.InputError`, whose `.problems` is a list of messages such as
+`"cells.shield.material: unknown material 'leed' (did you mean 'lead'?)"`.
+
+| Member | Meaning |
+|--------|---------|
+| `run` | a `RunSettings` dataclass: `mode`, `engine`, `particles`, `batches`, `generations`, `inactive`, `seed`, `transport`, `weight_cutoff`, `survival`, `workers`, `data`, `temperature`. Assign to any field before `solve()`. |
+| `materials`, `surfaces`, `cells`, `tallies` | the parsed sections, keyed by name |
+| `data_dir` | the resolved data directory (`run.data`, else `$PYNEUT_DATA`, else `./endfb`) |
+| `build()` | reads each nuclide's AWR from its data file and builds the `Region`s. Returns `(mediums, compositions, awr)`, and raises `InputError` for missing files. |
+| `check(samples=20000)` | `(errors, warnings)`: data files, a source outside every cell, overlapping cells without distinct priorities |
+| `solve()` | runs the calculation and returns `Results` |
+| `describe()` | a short text summary |
+
+### `Results`
+
+`results[name]` is a tally's dict. Its keys depend on the type:
+
+| Tally type | Keys |
+|------------|------|
+| `leakage` | `total`, `total_sem`, `mean_energy`, `mean_energy_sem`, and with bins also `energy_bins`, `spectrum`, `spectrum_sem` |
+| `absorption` | `total`, `total_sem`, and with a mesh also `mesh` (`mean` and `sem` arrays) |
+| `detector` | `fraction`, `fraction_sem` |
+| `keff` | `k_eff`, `k_eff_sem`, `k_source`, `k_source_sem`, `cycles` |
+
+Other members:
+- `info`: run information (engine, wall time, histories/s, counters)
+- `provenance`: input hash, resolved input, version, git commit, data fingerprint
+- `summary()`: printable text
+- `to_dict()`
+- `save(directory)`: writes `results.json`, plus `.vtk` and `.npz` files for meshes
+
+### Building blocks
+
+- `pyneut.regions.parse_region(text)` parses a region expression.
+  `compile_region(tree, surfaces)` turns the result into `Region` objects.
+- `pyneut.sources`:
+  - `build_space(table)`, `build_direction(value)` and `build_energy(value)`
+    build distributions from input tables. Each has a `.sample(n, rng)` method.
+  - `Source.sample(n, rng)` returns vector-engine arrays, and `to_states`
+    converts them to scalar-engine dicts.
+- `pyneut.units.parse_energy(value)` returns eV from a number or a string
+  such as `"2 MeV"`.
+- `pyneut.data`:
+  - `read_awr(data_dir, nuclide)`
+  - `data_manifest(data_dir)`: the data fingerprint stored in results
+  - `resolve_data_dir(explicit, base_dir)`
 
 ---
 

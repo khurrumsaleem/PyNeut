@@ -46,6 +46,12 @@ end to end. If you add
 or change physics, add a test that pins the behaviour (a unit test for kinematics
 or geometry, or an entry in the validation suite for a transport-level check).
 
+If you add a feature to the input format, also add an input file under
+`examples/` that uses it. `tests/test_input_format.py` loads, checks and runs
+every example against a synthetic data library (`tests/synthetic_data.py`),
+so CI covers the examples too. That library has flat, made-up cross sections,
+so these tests check the code paths, not physics values.
+
 ## Submitting changes
 
 1. Fork the repository and create a topic branch off `main`.

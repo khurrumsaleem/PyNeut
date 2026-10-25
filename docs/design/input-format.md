@@ -1,8 +1,22 @@
 # Design: TOML input files and a tally system
 
-Status: **proposal, for review**. Addresses #26 (configuration file),
-#6 (tallies) and the API-ergonomics roadmap item. Nothing here is
-implemented yet.
+Status: **PRs 1 and 2 implemented** (the `pyneut` package, and the input
+format: `docs/input-format.md` is the user reference). PR 3, the tally
+interface (#6), is next. Addresses #26 (configuration file), #6 (tallies) and
+the API-ergonomics roadmap item.
+
+**Where PR 2 differs from this proposal:**
+- Detector tallies take a `box`, not a `cell`, because the kernel's detector
+  is a box. They need the scalar engine, as do mesh tallies, until PR 3.
+- `Model.from_dict` is the Python constructor. Separate `Material`, `Cell`
+  and `Surface` builder classes were not needed.
+- `pyneut plot` is not in PR 2.
+- The source gained a `cylinder` space, needed for the pin-cell pellet.
+- The Maxwellian takes `kT` as an energy rather than a temperature.
+- On the vector engine, eigenvalue runs use one process, and `workers` is
+  ignored with a warning.
+- Unit strings deliberately leave out `meV`, so a case typo can't shift an
+  energy by 10⁹.
 
 ## Goals
 
@@ -263,20 +277,13 @@ scripts, tools and docs changes in the same PR. `setup.py` installs the
 | 3 | Engine scoring interface; cell/mesh/energy filters in both engines; collision-estimator flux; vector-engine mesh tallies. Closes #6. |
 | 4 (optional) | Validation suite reads its cases from `examples/` instead of Python dicts. |
 
-## Open questions
+## Decisions
 
-1. **Region syntax: explicit `&` only, or also a space for intersection?**
-   OpenMC and MCNP write `-1 2 -3` (space = intersection). Proposal:
-   explicit `&` only — longer, but unambiguous and easier to error-check.
-2. **Overlapping cells.** The kernels resolve overlaps by `priority`.
-   Proposal: cells must not overlap; `priority` is still accepted as an
-   escape hatch, and `pyneut check` reports overlaps that have no priority.
-   The alternative is to keep priority-first modelling (nest a cell inside
-   another without subtracting it), which is convenient but hides mistakes.
-3. **Unit strings** (`"2 MeV"`) for energies, or plain numbers only?
-   Proposal: allow both for energies; lengths stay plain cm.
-4. **Default engine:** vector (faster, validated) — or scalar (the
-   reference)? Proposal: vector.
-5. **Rename compatibility:** clean break, or a `src` shim that re-exports
-   `pyneut` with a deprecation warning for one release? Proposal: clean
-   break; every in-repo user is updated in the same PR.
+All five open questions were settled with the proposed answers:
+
+1. Intersection is written with an explicit `&`; a space is an error.
+2. Cells must not overlap unless they have different `priority` values
+   (unset means 0). `pyneut check` reports overlaps.
+3. Energies accept unit strings (`"2 MeV"`); lengths are plain cm.
+4. The default engine is the vector engine.
+5. The rename to `pyneut` was a clean break, with no `src` shim.
