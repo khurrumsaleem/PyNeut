@@ -1,8 +1,15 @@
+import os
+
 import pytest
 import numpy as np
 from src.material import Material
 from src.cross_section_read import CrossSectionReader
 from src.vt_calc import VelocitySampler
+
+ENDF = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "endfb")
+HAVE_DATA = os.path.exists(os.path.join(ENDF, "neutron", "Pb208.h5"))
+
+needs_data = pytest.mark.skipif(not HAVE_DATA, reason="ENDF data not present")
 
 
 class TestMaterial:
@@ -80,6 +87,7 @@ class TestCrossSectionReader:
         """Test reader initializes correctly"""
         assert reader.base_path == "./endfb"
 
+    @needs_data
     def test_get_cross_section_elastic(self, reader):
         """Test retrieving elastic scattering XS (MT=2)"""
         # Test for Pb-208 elastic scattering at 1 MeV
@@ -181,6 +189,7 @@ class TestCrossSectionReader:
 class TestCrossSectionPhysics:
     """Test physical behavior of cross sections"""
 
+    @needs_data
     def test_xs_energy_dependence(self):
         """Test that XS changes with energy as expected"""
         reader = CrossSectionReader("./endfb")
@@ -199,6 +208,7 @@ class TestCrossSectionPhysics:
         # This is element-dependent, so just check they're different
         assert len(set(xs_values)) > 1  # Not all the same
 
+    @needs_data
     def test_absorption_vs_scattering(self):
         """Test that scattering dominates at high energy"""
         reader = CrossSectionReader("./endfb")
@@ -215,6 +225,7 @@ class TestCrossSectionPhysics:
 class TestIntegrationMaterialsAndCrossSections:
     """Integration tests combining materials and cross sections"""
 
+    @needs_data
     def test_mean_free_path_calculation(self):
         """Test mean free path calculation: λ = 1/Σ"""
         reader = CrossSectionReader("./endfb")
@@ -234,6 +245,7 @@ class TestIntegrationMaterialsAndCrossSections:
         # For lead at 1 MeV, MFP should be on the order of several cm
         assert 1 < mfp < 20  # Reasonable range
 
+    @needs_data
     def test_scattering_probability(self):
         """Test that scattering probability is computed correctly"""
         reader = CrossSectionReader("./endfb")
